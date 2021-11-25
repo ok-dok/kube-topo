@@ -6,23 +6,24 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1beta1Api;
 import io.kubernetes.client.util.Config;
+import lombok.Data;
 import okhttp3.OkHttpClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
 import java.util.concurrent.TimeUnit;
 
 @SpringBootConfiguration
+@ConfigurationProperties("k8s")
+@Data
 public class K8sConfig {
-    @Value("k8s.url")
-    private static String url;
-    @Value("k8s.value")
-    private static String token;
+    private String url;
+    private String token;
 
     @Bean
-    public ApiClient getApiClient() {
-        ApiClient apiClient = Config.fromToken(url, token);
+    public ApiClient createApiClient() {
+        ApiClient apiClient = Config.fromToken(url, token, false);
         Configuration.setDefaultApiClient(apiClient);
         // infinite timeout
         OkHttpClient httpClient =
@@ -32,17 +33,18 @@ public class K8sConfig {
     }
 
     @Bean
-    public CoreV1Api getCoreV1Api() {
-        return new CoreV1Api();
+    public CoreV1Api createCoreV1Api(ApiClient apiClient) {
+        return new CoreV1Api(apiClient);
     }
 
     @Bean
-    public NetworkingV1Api getNetworkingV1Api() {
-        return new NetworkingV1Api();
+    public NetworkingV1Api createNetworkingV1Api(ApiClient apiClient) {
+        return new NetworkingV1Api(apiClient);
     }
 
     @Bean
-    public NetworkingV1beta1Api getNetworkingV1beta1Api(){
-        return new NetworkingV1beta1Api();
+    public NetworkingV1beta1Api createNetworkingV1beta1Api(ApiClient apiClient) {
+        return new NetworkingV1beta1Api(apiClient);
     }
+
 }

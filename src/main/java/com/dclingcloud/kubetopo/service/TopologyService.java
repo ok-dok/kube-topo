@@ -1,4 +1,4 @@
-package com.dclingcloud.kubetopo;
+package com.dclingcloud.kubetopo.service;
 
 import com.dclingcloud.kubetopo.model.IngressInfo;
 import com.dclingcloud.kubetopo.model.PodEndpointMeta;
@@ -7,20 +7,20 @@ import com.dclingcloud.kubetopo.model.ServiceInfo;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.apis.NetworkingApi;
+import io.kubernetes.client.openapi.apis.NetworkingV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.*;
 
-@Component
-public class Topology {
+@Service
+public class TopologyService {
     @Resource
     private CoreV1Api coreV1Api;
     @Resource
-    private NetworkingApi networkingApi;
+    private NetworkingV1beta1Api networkingV1beta1Api;
 
     public List<ServiceInfo> getServices() throws ApiException {
         V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);

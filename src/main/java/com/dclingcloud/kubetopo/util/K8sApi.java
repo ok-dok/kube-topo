@@ -10,9 +10,7 @@ import javax.annotation.Resource;
 
 @Component
 public class K8sApi {
-    @Resource
     private static CoreV1Api coreV1Api;
-    @Resource
     private static NetworkingV1beta1Api networkingV1beta1Api;
 
     public static V1ServiceList listAllServices() throws ApiException {
@@ -29,5 +27,15 @@ public class K8sApi {
 
     public static V1Endpoints listEndpoints(String namespace, String serviceName) throws ApiException {
         return coreV1Api.readNamespacedEndpoints(serviceName, namespace, null, null, null);
+    }
+
+    @Resource
+    public void setCoreV1Api(CoreV1Api coreV1Api) {
+        K8sApi.coreV1Api = coreV1Api;
+    }
+
+    @Resource
+    public void setNetworkingV1beta1Api(NetworkingV1beta1Api networkingV1beta1Api) {
+        K8sApi.networkingV1beta1Api = networkingV1beta1Api;
     }
 }
