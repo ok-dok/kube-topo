@@ -11,7 +11,8 @@ public class ServiceEndpointMeta {
     private String name;
     private String protocol;
     private Integer port;
+    private Integer targetPort;
     private Integer nodePort;
     private IngressInfo ingress;
-    private List<PodEndpointMeta> endpoints;
+    private List<PodEndpoint> endpoints;
 }

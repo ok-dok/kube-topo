@@ -1,14 +1,13 @@
 package com.dclingcloud.kubetopo.service;
 
-import com.dclingcloud.kubetopo.model.IngressInfo;
-import com.dclingcloud.kubetopo.model.PodEndpointMeta;
-import com.dclingcloud.kubetopo.model.ServiceEndpointMeta;
-import com.dclingcloud.kubetopo.model.ServiceInfo;
+import com.dclingcloud.kubetopo.entity.ServicePO;
+import com.dclingcloud.kubetopo.model.*;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +21,52 @@ public class TopologyService {
     @Resource
     private NetworkingV1beta1Api networkingV1beta1Api;
 
+    public void loadResources() throws ApiException {
+        V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
+        List<ServicePO> svcList = new ArrayList<>(serviceList.getItems().size());
+        Map<String, IngressInfo> ingressMapping = getIngressMapping();
+        List<V1Service> services = serviceList.getItems();
+        for (V1Service service : services) {
+            V1Endpoints endpoints = K8sApi.listEndpoints(service.getMetadata().getNamespace(), service.getMetadata().getName());
+            List<PodEndpoint> podEndpointList = parseEndpoints(endpoints);
+            V1ServiceSpec spec = service.getSpec();
+            ServicePO svc = ServicePO.builder()
+                    .uid(service.getMetadata().getUid())
+                    .name(service.getMetadata().getName())
+                    .namespace(service.getMetadata().getNamespace())
+                    .type(spec.getType())
+                    .clusterIP(spec.getClusterIP())
+                    .externalName(spec.getExternalName())
+                    .externalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
+                    .loadBalancerIP(spec.getLoadBalancerIP())
+                    .build();
+            for (V1ServicePort sp : spec.getPorts()) {
+                IngressInfo ingressInfo = ingressMapping.get(sp.getName() + ":" + sp.getPort());
+                List<PodEndpoint> podEndpoints = new ArrayList<>();
+                if (sp.getTargetPort().isInteger()) {
+                    for (PodEndpoint podEndpoint : podEndpointList) {
+                        for (PodPort port : podEndpoint.getPorts()) {
+                            if (port.getPort() == sp.getTargetPort().getIntValue()) {
+                                PodEndpoint endpoint = ObjectUtils.clone(podEndpoint);
+                                podEndpoints.add(endpoint);
+                            }
+                        }
+                    }
+                }
+                ServiceEndpointMeta sep = ServiceEndpointMeta.builder()
+                        .name(sp.getName())
+                        .protocol(StringUtils.defaultString(sp.getAppProtocol(), sp.getProtocol()))
+                        .port(sp.getPort())
+                        .targetPort(sp.getTargetPort().isInteger() ? sp.getTargetPort().getIntValue() : Integer.parseInt(sp.getTargetPort().getStrValue()))
+                        .nodePort(sp.getNodePort())
+                        .ingress(ingressInfo)
+                        .endpoints(podEndpointList).build();
+//                svc.getEndpoints().add(sep);
+            }
+            svcList.add(svc);
+        }
+    }
+
     public List<ServiceInfo> getServices() throws ApiException {
         V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
         List<ServiceInfo> svcList = new ArrayList<>(serviceList.getItems().size());
@@ -29,7 +74,7 @@ public class TopologyService {
         List<V1Service> services = serviceList.getItems();
         for (V1Service service : services) {
             V1Endpoints endpoints = K8sApi.listEndpoints(service.getMetadata().getNamespace(), service.getMetadata().getName());
-            List<PodEndpointMeta> podEndpointMetaList = parseEndpoints(endpoints);
+            List<PodEndpoint> podEndpointList = parseEndpoints(endpoints);
             V1ServiceSpec spec = service.getSpec();
             ServiceInfo svc = ServiceInfo.builder()
                     .name(service.getMetadata().getName())
@@ -43,13 +88,25 @@ public class TopologyService {
                     .build();
             for (V1ServicePort sp : spec.getPorts()) {
                 IngressInfo ingressInfo = ingressMapping.get(sp.getName() + ":" + sp.getPort());
+                List<PodEndpoint> podEndpoints = new ArrayList<>();
+                if (sp.getTargetPort().isInteger()) {
+                    for (PodEndpoint podEndpoint : podEndpointList) {
+                        for (PodPort port : podEndpoint.getPorts()) {
+                            if (port.getPort() == sp.getTargetPort().getIntValue()) {
+                                PodEndpoint endpoint = ObjectUtils.clone(podEndpoint);
+                                podEndpoints.add(endpoint);
+                            }
+                        }
+                    }
+                }
                 ServiceEndpointMeta sep = ServiceEndpointMeta.builder()
                         .name(sp.getName())
-                        .protocol(sp.getProtocol())
+                        .protocol(StringUtils.defaultString(sp.getAppProtocol(), sp.getProtocol()))
                         .port(sp.getPort())
+                        .targetPort(sp.getTargetPort().isInteger() ? sp.getTargetPort().getIntValue() : Integer.parseInt(sp.getTargetPort().getStrValue()))
                         .nodePort(sp.getNodePort())
                         .ingress(ingressInfo)
-                        .endpoints(podEndpointMetaList).build();
+                        .endpoints(podEndpointList).build();
                 svc.getEndpoints().add(sep);
             }
             svcList.add(svc);
@@ -57,33 +114,30 @@ public class TopologyService {
         return svcList;
     }
 
-    private List<PodEndpointMeta> parseEndpoints(V1Endpoints endpoints) {
+    private List<PodEndpoint> parseEndpoints(V1Endpoints endpoints) {
         if (endpoints == null)
             return null;
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
-        ArrayList<PodEndpointMeta> list = new ArrayList<>();
+        ArrayList<PodEndpoint> list = new ArrayList<>();
         for (V1EndpointSubset subset : subsets) {
-            if (subset.getPorts().size() == 0) {
-                // It's possible to have headless services with no ports.
-                for (V1EndpointAddress address : subset.getAddresses()) {
-                    PodEndpointMeta pep = PodEndpointMeta.builder()
-                            .hostname(address.getHostname())
-                            .ip(address.getIp())
-                            .name(Optional.ofNullable(address.getTargetRef()).map(V1ObjectReference::getName).orElse(null))
-                            .nodeName(address.getNodeName()).build();
-                    list.add(pep);
-                    //	TODO mapping 需要加入外部ip的地址映射
-                }
-            } else {
-                for (V1EndpointPort port : subset.getPorts()) {
-                    for (V1EndpointAddress address : subset.getAddresses()) {
-                        PodEndpointMeta pep = PodEndpointMeta.builder()
-                                .hostname(address.getHostname())
-                                .ip(address.getIp())
+            for (V1EndpointAddress address : subset.getAddresses()) {
+                // Headless services with no ports.
+                PodEndpoint pep = PodEndpoint.builder()
+                        .hostname(address.getHostname())
+                        .ip(address.getIp())
+                        .name(Optional.ofNullable(address.getTargetRef()).map(V1ObjectReference::getName).orElse(null))
+                        .nodeName(address.getNodeName()).build();
+                list.add(pep);
+                if (subset.getPorts().size() != 0) {
+                    pep.setPorts(new ArrayList<>(subset.getPorts().size()));
+                    for (V1EndpointPort port : subset.getPorts()) {
+                        PodPort podPort = PodPort.builder()
+                                .name(port.getName())
                                 .port(port.getPort())
-                                .name(Optional.ofNullable(address.getTargetRef()).map(V1ObjectReference::getName).orElse(null))
-                                .nodeName(address.getNodeName()).build();
-                        list.add(pep);
+                                .protocol(StringUtils.defaultString(port.getAppProtocol(), port.getProtocol()))
+                                .podUID(address.getTargetRef().getUid())
+                                .build();
+                        pep.getPorts().add(podPort);
                     }
                 }
             }
