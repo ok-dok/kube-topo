@@ -1,33 +1,34 @@
 package com.dclingcloud.kubetopo.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.List;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Builder
 @Entity
-@Table(name = "pod")
+@Table(name = "pod", schema = "k8s")
 public class PodPO implements Serializable {
     @Id
-    @Column(name = "uid", nullable = false)
+    @Column(name = "uid", nullable = false, length = 36)
     private String uid;
     @Column
     private String name;
+    @Column
+    private String namespace;
     @Column
     private String nodeName;
     @Column
     private String hostname;
     @Column
     private String ip;
-    @ManyToMany(cascade = CascadeType.DETACH)
-    @JoinTable(name = "pod_port_rules", joinColumns = {
-            @JoinColumn(name = "pod_port_uid", referencedColumnName = "uid")
-    }, inverseJoinColumns = {
-            @JoinColumn(name = "pod_uid", referencedColumnName = "uid")
-    })
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
     private List<PodPortPO> ports;
 }

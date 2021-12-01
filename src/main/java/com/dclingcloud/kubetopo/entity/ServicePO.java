@@ -1,19 +1,23 @@
 package com.dclingcloud.kubetopo.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.List;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Builder
 @Entity
-@Table(name = "service")
+@Table(name = "service", schema = "k8s")
 public class ServicePO implements Serializable {
     @Id
-    @Column(name = "uid", nullable = false)
+    @Column(name = "uid", nullable = false, length = 36)
     private String uid;
     @Column
     private String name;

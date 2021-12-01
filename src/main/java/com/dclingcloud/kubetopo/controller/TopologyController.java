@@ -20,13 +20,16 @@ public class TopologyController {
 
     @GetMapping("/all")
     public List<ServiceInfo> getServiceTopology() {
-        try {
-            return topologyService.getServices();
-        } catch (ApiException e) {
-            System.out.println(e.getResponseBody());
-            e.printStackTrace();
-            return null;
-        }
+//        try {
+////            topologyService.loadResources();
+//            return null;
+//        } catch (ApiException e) {
+//            System.out.println(e.getResponseBody());
+//            e.printStackTrace();
+//            return null;
+//        }
+
+        return null;
     }
 
     @GetMapping("mapping/endpoint/{ep}")
@@ -35,7 +38,6 @@ public class TopologyController {
             return null;
         } else {
             String[] split = ep.split(":");
-
         }
         return null;
     }

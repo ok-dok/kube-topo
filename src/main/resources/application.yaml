@@ -4,15 +4,23 @@ k8s:
 spring:
   jpa:
     show-sql: true   #打印sql
+    hibernate:
+      ddl-auto: update
+  sql:
+    init:
+      mode: always
+      username: root
+      password: 123456
+      schema-locations:
+        -  classpath*:schema.sql
   datasource:
-    url: jdbc:h2:mem:xwj_db;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE   #mem：连接到内存
+    url: jdbc:h2:./db/k8s;AUTO_SERVER=TRUE;
     driver-class-name: org.h2.Driver
     username: root
     password: 123456
-#    data: classpath:db/data.sql
   h2:
     console:
-      enabled: true
+      enabled: false
       settings:
         web-allow-others: true
       path: /h2-console

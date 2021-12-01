@@ -1,20 +1,27 @@
 package com.dclingcloud.kubetopo.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.List;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Builder
 @Entity
-@Table(name = "service_port")
+@Table(name = "service_port", schema = "k8s")
 public class ServicePortPO implements Serializable {
     @Id
-    @Column(name = "uid", nullable = false)
-    private Long uid;
+    @Column(name = "uid", nullable = false, length = 36)
+    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
+    @GeneratedValue(generator = "uuid-gen")
+    private String uid;
     @Column
     private String name;
     @Column
