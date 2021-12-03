@@ -49,7 +49,7 @@ public class TopologyService {
         List<ServiceVO> svcs = svcList.stream().map(svc -> {
             List<BackendVO> backends = Optional.ofNullable(servicePortRepository.findAllByService(svc)).map(l -> l.stream().map(p -> {
                 List<String> endpointsUids = podPortRepository.findAllUidsByServicePort(p);
-                String ingressPathRuleUid = pathRuleRepository.getUidByBackend(p);
+                List<String> servicePortUids = pathRuleRepository.findAllUidsByServicePort(p);
                 return BackendVO.builder()
                         .uid(p.getUid())
                         .serviceUid(svc.getUid())
@@ -59,7 +59,7 @@ public class TopologyService {
                         .nodePort(p.getNodePort())
                         .protocol(p.getProtocol())
                         .appProtocol(p.getAppProtocol())
-                        .ingressPathRuleUid(ingressPathRuleUid)
+                        .ingressPathRuleUids(servicePortUids)
                         .endpointUids(endpointsUids)
                         .build();
             }).collect(Collectors.toList())).orElse(null);
@@ -91,7 +91,9 @@ public class TopologyService {
                                                 .host(path.getHost())
                                                 .path(path.getPath())
                                                 .pathType(path.getPathType())
-                                                .targetBackendUid(Optional.ofNullable(path.getBackend()).map(ServicePortPO::getUid).orElse(null)).build();
+                                                .targetBackendUid(Optional.ofNullable(path.getBackend())
+                                                        .map(ServicePortPO::getUid).orElse(null))
+                                                .build();
                                     }).collect(Collectors.toList()))
                                     .orElse(null)
                     ).build();
@@ -152,7 +154,7 @@ public class TopologyService {
         nodeRepository.saveAllAndFlush(nodePOList);
 
         V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
-        Map<String, PathRulePO> ingressPathMapping = loadIngressPathMapping();
+        Map<String, List<PathRulePO>> ingressPathMapping = loadIngressPathMapping();
         List<V1Service> services = serviceList.getItems();
         for (V1Service service : services) {
             Map<String, List<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
@@ -171,7 +173,7 @@ public class TopologyService {
 
             for (V1ServicePort sp : spec.getPorts()) {
                 // 获取ingress path rule映射
-                PathRulePO pathRulePO = ingressPathMapping.get(sp.getName() + ":" + sp.getPort());
+                List<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getName() + ":" + sp.getPort());
                 String id = svcPO.getUid() + ":" + sp.getPort() + ":" + sp.getProtocol();
                 String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                 String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
@@ -183,7 +185,7 @@ public class TopologyService {
                         .appProtocol(sp.getAppProtocol())
                         .port(sp.getPort())
                         .nodePort(sp.getNodePort())
-                        .ingressPathRule(pathRulePO)
+                        .ingressPathRules(pathRulePOList)
                         .build();
                 // 获取pod port映射列表
                 List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
@@ -200,15 +202,19 @@ public class TopologyService {
                 }
                 servicePortRepository.saveAndFlush(servicePortPO);
                 podPortRepository.saveAllAndFlush(podPortPOList);
+                if (pathRulePOList != null) {
+                    pathRulePOList.forEach(p -> p.setBackend(servicePortPO));
+                    pathRuleRepository.saveAllAndFlush(pathRulePOList);
+                }
             }
         }
     }
 
     @Transactional
-    public Map<String, PathRulePO> loadIngressPathMapping() throws ApiException {
+    public Map<String, List<PathRulePO>> loadIngressPathMapping() throws ApiException {
         NetworkingV1beta1IngressList ingressList = K8sApi.listIngresses();
         List<NetworkingV1beta1Ingress> ingresses = ingressList.getItems();
-        HashMap<String, PathRulePO> pathsMap = new HashMap<>();
+        HashMap<String, List<PathRulePO>> pathsMap = new HashMap<>();
         for (int i = 0; i < ingresses.size(); i++) {
             NetworkingV1beta1Ingress ingress = ingresses.get(i);
             IngressPO ingressPO = IngressPO.builder()
@@ -248,8 +254,9 @@ public class TopologyService {
                     pathRuleRepository.saveAndFlush(pathRulePO);
                     String svcPortKey = path.getBackend().getServiceName() + ":" + path.getBackend().getServicePort();
                     if (!pathsMap.containsKey(svcPortKey)) {
-                        pathsMap.put(svcPortKey, pathRulePO);
+                        pathsMap.put(svcPortKey, new ArrayList<PathRulePO>());
                     }
+                    pathsMap.get(svcPortKey).add(pathRulePO);
                 }
             }
         }

@@ -28,7 +28,8 @@ public class PathRulePO extends BasePO {
     @Column
     private String pathType;
 
-    @OneToOne(cascade = CascadeType.DETACH, mappedBy = "ingressPathRule", fetch = FetchType.EAGER)
+    @ManyToOne(cascade = CascadeType.DETACH)
+    @JoinColumn(name = "service_port_uid")
     private ServicePortPO backend;
 
     @Override

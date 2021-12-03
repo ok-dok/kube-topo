@@ -4,10 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
@@ -40,9 +38,8 @@ public class ServicePortPO extends BasePO {
     @JoinColumn(name = "service_uid")
     private ServicePO service;
 
-    @OneToOne(cascade = CascadeType.DETACH)
-    @JoinColumn(name = "path_rule_uid")
-    private PathRulePO ingressPathRule;
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "backend")
+    private List<PathRulePO> ingressPathRules;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "servicePort")
     private List<PodPortPO> podPorts;
