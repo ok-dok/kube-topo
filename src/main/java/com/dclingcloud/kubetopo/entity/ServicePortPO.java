@@ -9,6 +9,7 @@ import org.hibernate.annotations.GenericGenerator;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,11 +17,11 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "service_port", schema = "k8s")
-public class ServicePortPO implements Serializable {
+public class ServicePortPO extends BasePO {
     @Id
-    @Column(name = "uid", nullable = false, length = 36)
-    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
-    @GeneratedValue(generator = "uuid-gen")
+    @Column(name = "uid", nullable = false)
+//    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
+//    @GeneratedValue(generator = "uuid-gen")
     private String uid;
     @Column
     private String name;
@@ -45,4 +46,17 @@ public class ServicePortPO implements Serializable {
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "servicePort")
     private List<PodPortPO> podPorts;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ServicePortPO that = (ServicePortPO) o;
+        return this.uid.equals(that.uid) || port.equals(that.port) && service.equals(that.service);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(port, service);
+    }
 }

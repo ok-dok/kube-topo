@@ -17,7 +17,7 @@ import java.io.Serializable;
 @Builder
 @Entity
 @Table(name = "node", schema = "k8s")
-public class NodePO implements Serializable {
+public class NodePO extends BasePO {
     @Id
     @Column(name = "uid", nullable = false, length = 36)
     private String uid;

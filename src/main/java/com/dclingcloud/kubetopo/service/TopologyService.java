@@ -12,9 +12,12 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Base64Utils;
+import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.transaction.Transactional;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,75 +42,6 @@ public class TopologyService {
     @Resource
     private NodeRepository nodeRepository;
 
-    @Transactional
-    public void loadResources() throws ApiException {
-        // load nodes
-        V1NodeList nodeList = coreV1Api.listNode(null, null, null, null, null, null, null, null, null);
-        List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
-            NodePO nodePO = NodePO.builder()
-                    .name(n.getMetadata().getName())
-                    .uid(n.getMetadata().getUid())
-                    .podCIDR(n.getSpec().getPodCIDR())
-                    .build();
-            n.getStatus().getAddresses().forEach(addr -> {
-                if ("Hostname".equals(addr.getType())) {
-                    nodePO.setHostname(addr.getAddress());
-                } else if ("InternalIP".equals(addr.getType())) {
-                    nodePO.setInternalIP(addr.getAddress());
-                }
-            });
-            return nodePO;
-        }).collect(Collectors.toList());
-        nodeRepository.saveAllAndFlush(nodePOList);
-
-        V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
-        Map<String, PathRulePO> ingressPathMapping = loadIngressPathMapping();
-        List<V1Service> services = serviceList.getItems();
-        for (V1Service service : services) {
-            Map<String, List<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
-            V1ServiceSpec spec = service.getSpec();
-            ServicePO svcPO = ServicePO.builder()
-                    .uid(service.getMetadata().getUid())
-                    .name(service.getMetadata().getName())
-                    .namespace(service.getMetadata().getNamespace())
-                    .type(spec.getType())
-                    .clusterIP(spec.getClusterIP())
-                    .externalName(spec.getExternalName())
-                    .externalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
-                    .loadBalancerIP(spec.getLoadBalancerIP())
-                    .build();
-            serviceRepository.saveAndFlush(svcPO);
-
-            for (V1ServicePort sp : spec.getPorts()) {
-                // 获取ingress path rule映射
-                PathRulePO pathRulePO = ingressPathMapping.get(sp.getName() + ":" + sp.getPort());
-                ServicePortPO servicePortPO = ServicePortPO.builder()
-                        .service(svcPO)
-                        .name(sp.getName())
-                        .protocol(sp.getProtocol())
-                        .appProtocol(sp.getAppProtocol())
-                        .port(sp.getPort())
-                        .nodePort(sp.getNodePort())
-                        .ingressPathRule(pathRulePO)
-                        .build();
-                // 获取pod port映射列表
-                List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
-                if (sp.getTargetPort().isInteger()) {
-                    servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
-                } else {
-                    servicePortPO.setTargetPort(podPortPOList.get(0).getPort());
-                }
-                // 设置pod port关联到service port
-                try {
-                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
-                } catch (NullPointerException e) {
-                    e.printStackTrace();
-                }
-                servicePortRepository.saveAndFlush(servicePortPO);
-                podPortRepository.saveAllAndFlush(podPortPOList);
-            }
-        }
-    }
 
     public List<ServiceInfo> getServices() throws ApiException {
         V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
@@ -219,6 +153,80 @@ public class TopologyService {
     }
 
     @Transactional
+    public void loadResources() throws ApiException {
+        // load nodes
+        V1NodeList nodeList = coreV1Api.listNode(null, null, null, null, null, null, null, null, null);
+        List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
+            NodePO nodePO = NodePO.builder()
+                    .name(n.getMetadata().getName())
+                    .uid(n.getMetadata().getUid())
+                    .podCIDR(n.getSpec().getPodCIDR())
+                    .build();
+            n.getStatus().getAddresses().forEach(addr -> {
+                if ("Hostname".equals(addr.getType())) {
+                    nodePO.setHostname(addr.getAddress());
+                } else if ("InternalIP".equals(addr.getType())) {
+                    nodePO.setInternalIP(addr.getAddress());
+                }
+            });
+            return nodePO;
+        }).collect(Collectors.toList());
+        nodeRepository.saveAllAndFlush(nodePOList);
+
+        V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
+        Map<String, PathRulePO> ingressPathMapping = loadIngressPathMapping();
+        List<V1Service> services = serviceList.getItems();
+        for (V1Service service : services) {
+            Map<String, List<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
+            V1ServiceSpec spec = service.getSpec();
+            ServicePO svcPO = ServicePO.builder()
+                    .uid(service.getMetadata().getUid())
+                    .name(service.getMetadata().getName())
+                    .namespace(service.getMetadata().getNamespace())
+                    .type(spec.getType())
+                    .clusterIP(spec.getClusterIP())
+                    .externalName(spec.getExternalName())
+                    .externalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
+                    .loadBalancerIP(spec.getLoadBalancerIP())
+                    .build();
+            serviceRepository.saveAndFlush(svcPO);
+
+            for (V1ServicePort sp : spec.getPorts()) {
+                // 获取ingress path rule映射
+                PathRulePO pathRulePO = ingressPathMapping.get(sp.getName() + ":" + sp.getPort());
+                String id = svcPO.getUid() + ":" + sp.getPort() + ":" + sp.getProtocol();
+                String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
+                String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
+                ServicePortPO servicePortPO = ServicePortPO.builder()
+                        .uid(uid)
+                        .service(svcPO)
+                        .name(sp.getName())
+                        .protocol(sp.getProtocol())
+                        .appProtocol(sp.getAppProtocol())
+                        .port(sp.getPort())
+                        .nodePort(sp.getNodePort())
+                        .ingressPathRule(pathRulePO)
+                        .build();
+                // 获取pod port映射列表
+                List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
+                if (sp.getTargetPort().isInteger()) {
+                    servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
+                } else {
+                    servicePortPO.setTargetPort(podPortPOList.get(0).getPort());
+                }
+                // 设置pod port关联到service port
+                try {
+                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
+                } catch (NullPointerException e) {
+                    e.printStackTrace();
+                }
+                servicePortRepository.saveAndFlush(servicePortPO);
+                podPortRepository.saveAllAndFlush(podPortPOList);
+            }
+        }
+    }
+
+    @Transactional
     public Map<String, PathRulePO> loadIngressPathMapping() throws ApiException {
         NetworkingV1beta1IngressList ingressList = K8sApi.listIngresses();
         List<NetworkingV1beta1Ingress> ingresses = ingressList.getItems();
@@ -249,7 +257,11 @@ public class TopologyService {
                 // 七层路由
                 List<NetworkingV1beta1HTTPIngressPath> paths = rule.getHttp().getPaths();
                 for (NetworkingV1beta1HTTPIngressPath path : paths) {
+                    String id = ingressPO.getUid() + ":" + rule.getHost() + ":" + path.getPath() + ":" + path.getPathType();
+                    String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
+                    String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
                     PathRulePO pathRulePO = PathRulePO.builder()
+                            .uid(uid)
                             .host(rule.getHost())
                             .path(path.getPath())
                             .pathType(path.getPathType())
@@ -267,7 +279,7 @@ public class TopologyService {
     }
 
     @Transactional
-    private Map<String, List<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
+    protected Map<String, List<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
         V1Endpoints endpoints = K8sApi.listEndpoints(namespace, svcName);
         if (endpoints == null)
             return Collections.emptyMap();
@@ -295,7 +307,12 @@ public class TopologyService {
                 // Headless services with no ports.
                 if (subset.getPorts().size() != 0) {
                     for (V1EndpointPort port : subset.getPorts()) {
+                        String id = endpoints.getMetadata().getUid() + ":" + Optional.ofNullable(address.getTargetRef()).map(t -> t.getUid()).map(Objects::toString).orElse("null") + ":" + port.getPort() + ":" + port.getProtocol();
+                        String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
+                        String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
                         PodPortPO podPortPO = PodPortPO.builder()
+                                .uid(uid)
+                                .epUid(endpoints.getMetadata().getUid())
                                 .pod(podPO)
                                 .name(port.getName())
                                 .port(port.getPort())

@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "ingress", schema = "k8s")
-public class IngressPO implements Serializable {
+public class IngressPO extends BasePO {
     @Id
     @Column(name = "uid", nullable = false, length = 36)
     private String uid;

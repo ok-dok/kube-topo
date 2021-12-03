@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "service", schema = "k8s")
-public class ServicePO implements Serializable {
+public class ServicePO extends BasePO{
     @Id
     @Column(name = "uid", nullable = false, length = 36)
     private String uid;

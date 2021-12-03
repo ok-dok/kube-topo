@@ -4,10 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
-import java.io.Serializable;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,11 +14,11 @@ import java.io.Serializable;
 @Builder
 @Entity
 @Table(name = "path_rule", schema = "k8s")
-public class PathRulePO implements Serializable {
+public class PathRulePO extends BasePO {
     @Id
-    @Column(name = "uid", nullable = false, length = 36)
-    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
-    @GeneratedValue(generator = "uuid-gen")
+    @Column(name = "uid", nullable = false)
+//    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
+//    @GeneratedValue(generator = "uuid-gen")
     private String uid;
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "ingress_uid")
@@ -33,4 +32,17 @@ public class PathRulePO implements Serializable {
 
     @OneToOne(cascade = CascadeType.DETACH, mappedBy = "ingressPathRule")
     private ServicePortPO backend;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PathRulePO that = (PathRulePO) o;
+        return this.uid.equals(that.uid) || ingress.equals(that.ingress) && host.equals(that.host) && path.equals(that.path) && pathType.equals(that.pathType);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ingress, host, path, pathType);
+    }
 }

@@ -11,12 +11,14 @@ import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 import java.util.concurrent.TimeUnit;
 
 @SpringBootConfiguration
 @ConfigurationProperties("k8s")
 @Data
+@EnableJpaAuditing
 public class K8sConfig {
     private String url;
     private String token;

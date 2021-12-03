@@ -1,6 +1,10 @@
 k8s:
   url: https://10.168.1.121:6443
   token: cab559c45557a8f65868945cd9ce6bad
+
+server:
+  port: 8080
+  address: 127.0.0.1
 spring:
   jpa:
     show-sql: true   #打印sql
