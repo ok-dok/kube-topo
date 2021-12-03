@@ -21,4 +21,6 @@ public class BasePO implements Serializable {
     @Column
     @LastModifiedDate
     protected Date gmtModified;
+    @Column
+    protected String status;
 }

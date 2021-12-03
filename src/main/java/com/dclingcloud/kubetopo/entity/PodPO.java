@@ -29,6 +29,6 @@ public class PodPO extends BasePO {
     private String hostname;
     @Column
     private String ip;
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod", fetch = FetchType.EAGER)
     private List<PodPortPO> ports;
 }

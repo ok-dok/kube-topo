@@ -17,8 +17,6 @@ import java.util.Objects;
 public class PathRulePO extends BasePO {
     @Id
     @Column(name = "uid", nullable = false)
-//    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
-//    @GeneratedValue(generator = "uuid-gen")
     private String uid;
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "ingress_uid")
@@ -30,7 +28,7 @@ public class PathRulePO extends BasePO {
     @Column
     private String pathType;
 
-    @OneToOne(cascade = CascadeType.DETACH, mappedBy = "ingressPathRule")
+    @OneToOne(cascade = CascadeType.DETACH, mappedBy = "ingressPathRule", fetch = FetchType.EAGER)
     private ServicePortPO backend;
 
     @Override

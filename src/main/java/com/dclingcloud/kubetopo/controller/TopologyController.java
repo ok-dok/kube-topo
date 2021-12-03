@@ -1,7 +1,9 @@
 package com.dclingcloud.kubetopo.controller;
 
-import com.dclingcloud.kubetopo.model.ServiceInfo;
+import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.service.TopologyService;
+import com.dclingcloud.kubetopo.vo.JsonResult;
+import com.dclingcloud.kubetopo.vo.TopologyVO;
 import io.kubernetes.client.openapi.ApiException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
-import java.util.List;
 
 @RestController
 @RequestMapping("/v1/k8s/topo")
@@ -19,10 +20,11 @@ public class TopologyController {
     private TopologyService topologyService;
 
     @GetMapping("/all")
-    public List<ServiceInfo> getServiceTopology() {
+    public JsonResult<TopologyVO> getServiceTopology() {
         try {
             topologyService.loadResources();
-            return null;
+            TopologyVO topo = topologyService.getTopo();
+            return JsonResult.<TopologyVO>builder().code("1").status(JsonResult.JsonResultStatus.SUCCESS).data(topo).build();
         } catch (ApiException e) {
             System.out.println(e.getResponseBody());
             e.printStackTrace();
@@ -32,8 +34,8 @@ public class TopologyController {
 //        return null;
     }
 
-    @GetMapping("mapping/endpoint/{ep}")
-    public ServiceInfo getMappingByPodEndpoint(@PathVariable("ep") String ep) {
+    @GetMapping("mapping/endpoints/{ep}")
+    public PodPortPO getMappingByPodEndpoint(@PathVariable("ep") String ep) {
         if (!StringUtils.contains(ep, ":")) {
             return null;
         } else {

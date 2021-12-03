@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.List;
 
 @NoArgsConstructor
@@ -27,6 +26,6 @@ public class IngressPO extends BasePO {
     private String className;
     @Column
     private String loadBalancerHosts;
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress")
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress", fetch = FetchType.EAGER)
     private List<PathRulePO> pathRules;
 }

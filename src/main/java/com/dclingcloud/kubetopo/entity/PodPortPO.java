@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 
@@ -18,8 +17,6 @@ public class PodPortPO extends BasePO {
 
     @Id
     @Column(name = "uid", nullable = false)
-//    @GenericGenerator(name = "uuid-gen", strategy = "com.dclingcloud.kubetopo.entity.PodPortUidGenerator")
-//    @GeneratedValue(generator = "uuid-gen")
     private String uid;
     //    @Id
 //    @Column(name = "uid", nullable = false, length = 36)
@@ -43,7 +40,9 @@ public class PodPortPO extends BasePO {
 //
 //    @EmbeddedId
 //    private PodPortUPK id;
-
+        /**
+         * endpoint uid, 当podUid发生变化时，epUid不会发生变化
+         */
     @Column
     private String epUid;
     @Column

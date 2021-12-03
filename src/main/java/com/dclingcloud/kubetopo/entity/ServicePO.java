@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.List;
 
 @NoArgsConstructor
@@ -15,7 +14,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "service", schema = "k8s")
-public class ServicePO extends BasePO{
+public class ServicePO extends BasePO {
     @Id
     @Column(name = "uid", nullable = false, length = 36)
     private String uid;
@@ -34,6 +33,6 @@ public class ServicePO extends BasePO{
     @Column
     private String externalName;
 
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "service")
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "service", fetch = FetchType.EAGER)
     private List<ServicePortPO> ports;
 }

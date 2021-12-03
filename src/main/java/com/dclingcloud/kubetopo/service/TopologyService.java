@@ -1,15 +1,14 @@
 package com.dclingcloud.kubetopo.service;
 
 import com.dclingcloud.kubetopo.entity.*;
-import com.dclingcloud.kubetopo.model.*;
 import com.dclingcloud.kubetopo.repository.*;
 import com.dclingcloud.kubetopo.util.K8sApi;
+import com.dclingcloud.kubetopo.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Base64Utils;
@@ -42,114 +41,93 @@ public class TopologyService {
     @Resource
     private NodeRepository nodeRepository;
 
-
-    public List<ServiceInfo> getServices() throws ApiException {
-        V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
-        List<ServiceInfo> svcList = new ArrayList<>(serviceList.getItems().size());
-        Map<String, IngressInfo> ingressMapping = getIngressMapping();
-        List<V1Service> services = serviceList.getItems();
-        for (V1Service service : services) {
-            V1Endpoints endpoints = K8sApi.listEndpoints(service.getMetadata().getNamespace(), service.getMetadata().getName());
-            List<PodEndpoint> podEndpointList = parseEndpoints(endpoints);
-            V1ServiceSpec spec = service.getSpec();
-            ServiceInfo svc = ServiceInfo.builder()
-                    .name(service.getMetadata().getName())
-                    .namespace(service.getMetadata().getNamespace())
-                    .type(spec.getType())
-                    .clusterIP(spec.getClusterIP())
-                    .externalName(spec.getExternalName())
-                    .externalIPs(spec.getExternalIPs())
-                    .loadbalancerIP(spec.getLoadBalancerIP())
-                    .endpoints(new ArrayList<>())
+    public TopologyVO getTopo() {
+        List<ServicePO> svcList = serviceRepository.findAll();
+        List<NodePO> nodeList = nodeRepository.findAll();
+        List<IngressPO> ingressList = ingressRepository.findAll();
+        List<PodPO> podList = podRepository.findAll();
+        List<ServiceVO> svcs = svcList.stream().map(svc -> {
+            List<BackendVO> backends = Optional.ofNullable(servicePortRepository.findAllByService(svc)).map(l -> l.stream().map(p -> {
+                List<String> endpointsUids = podPortRepository.findAllUidsByServicePort(p);
+                String ingressPathRuleUid = pathRuleRepository.getUidByBackend(p);
+                return BackendVO.builder()
+                        .uid(p.getUid())
+                        .serviceUid(svc.getUid())
+                        .name(p.getName())
+                        .port(p.getPort())
+                        .targetPort(p.getTargetPort())
+                        .nodePort(p.getNodePort())
+                        .protocol(p.getProtocol())
+                        .appProtocol(p.getAppProtocol())
+                        .ingressPathRuleUid(ingressPathRuleUid)
+                        .endpointUids(endpointsUids)
+                        .build();
+            }).collect(Collectors.toList())).orElse(null);
+            ServiceVO svcVO = ServiceVO.builder()
+                    .uid(svc.getUid())
+                    .name(svc.getName())
+                    .namespace(svc.getNamespace())
+                    .type(svc.getType())
+                    .clusterIP(svc.getClusterIP())
+                    .externalIPs(svc.getExternalIPs())
+                    .externalName(svc.getExternalName())
+                    .loadBalancerIP(svc.getLoadBalancerIP())
+                    .backends(backends).build();
+            return svcVO;
+        }).collect(Collectors.toList());
+        List<IngressVO> ingresses = ingressList.stream().map(igrs -> {
+            return IngressVO.builder()
+                    .uid(igrs.getUid())
+                    .name(igrs.getName())
+                    .namespace(igrs.getNamespace())
+                    .className(igrs.getClassName())
+                    .loadBalancerHosts(igrs.getLoadBalancerHosts())
+                    .pathRules(Optional.ofNullable(pathRuleRepository.findAllByIngress(igrs))
+                                    .map(l -> l.stream().map(path -> {
+//                                String backendUid = servicePortRepository.getUidByIngressPathRule(path);
+                                        return IngressPathRuleVO.builder()
+                                                .uid(path.getUid())
+                                                .ingressUid(igrs.getUid())
+                                                .host(path.getHost())
+                                                .path(path.getPath())
+                                                .pathType(path.getPathType())
+                                                .targetBackendUid(Optional.ofNullable(path.getBackend()).map(ServicePortPO::getUid).orElse(null)).build();
+                                    }).collect(Collectors.toList()))
+                                    .orElse(null)
+                    ).build();
+        }).collect(Collectors.toList());
+        List<PodVO> pods = podList.stream().map(pod -> {
+            return PodVO.builder()
+                    .uid(pod.getUid())
+                    .name(pod.getName())
+                    .namespace(pod.getNamespace())
+                    .hostname(pod.getHostname())
+                    .ip(pod.getIp())
+                    .nodeName(pod.getNodeName())
+                    .endpoints(Optional.ofNullable(podPortRepository.findAllByPod(pod)).map(l -> l.stream().map(p -> {
+                                return EndpointVO.builder()
+                                        .uid(p.getUid())
+                                        .name(p.getName())
+                                        .backendUid(Optional.ofNullable(p.getServicePort()).map(ServicePortPO::getUid).orElse(null))
+                                        .podUid(pod.getUid())
+                                        .protocol(p.getProtocol())
+                                        .port(p.getPort())
+                                        .appProtocol(p.getAppProtocol())
+                                        .build();
+                            }).collect(Collectors.toList())
+                    ).orElse(null))
                     .build();
-            for (V1ServicePort sp : spec.getPorts()) {
-                IngressInfo ingressInfo = ingressMapping.get(sp.getName() + ":" + sp.getPort());
-                List<PodEndpoint> podEndpoints = new ArrayList<>();
-                if (sp.getTargetPort().isInteger()) {
-                    for (PodEndpoint podEndpoint : podEndpointList) {
-                        for (PodPort port : podEndpoint.getPorts()) {
-                            if (port.getPort() == sp.getTargetPort().getIntValue()) {
-                                PodEndpoint endpoint = ObjectUtils.clone(podEndpoint);
-                                podEndpoints.add(endpoint);
-                            }
-                        }
-                    }
-                }
-                ServiceEndpointMeta sep = ServiceEndpointMeta.builder()
-                        .name(sp.getName())
-                        .protocol(StringUtils.defaultString(sp.getAppProtocol(), sp.getProtocol()))
-                        .port(sp.getPort())
-//                        .targetPort(sp.getTargetPort().isInteger() ? sp.getTargetPort().getIntValue() : Integer.parseInt(sp.getTargetPort().getStrValue()))
-                        .nodePort(sp.getNodePort())
-                        .ingress(ingressInfo)
-                        .endpoints(podEndpointList).build();
-                svc.getEndpoints().add(sep);
-            }
-            svcList.add(svc);
-        }
-        return svcList;
-    }
-
-    private List<PodEndpoint> parseEndpoints(V1Endpoints endpoints) {
-        if (endpoints == null)
-            return null;
-        List<V1EndpointSubset> subsets = endpoints.getSubsets();
-        ArrayList<PodEndpoint> list = new ArrayList<>();
-        for (V1EndpointSubset subset : subsets) {
-            for (V1EndpointAddress address : subset.getAddresses()) {
-                // Headless services with no ports.
-                PodEndpoint pep = PodEndpoint.builder()
-                        .hostname(address.getHostname())
-                        .ip(address.getIp())
-                        .name(Optional.ofNullable(address.getTargetRef()).map(V1ObjectReference::getName).orElse(null))
-                        .nodeName(address.getNodeName()).build();
-                list.add(pep);
-                if (subset.getPorts().size() != 0) {
-                    pep.setPorts(new ArrayList<>(subset.getPorts().size()));
-                    for (V1EndpointPort port : subset.getPorts()) {
-                        PodPort podPort = PodPort.builder()
-                                .name(port.getName())
-                                .port(port.getPort())
-                                .protocol(StringUtils.defaultString(port.getAppProtocol(), port.getProtocol()))
-                                .podUID(address.getTargetRef().getUid())
-                                .build();
-                        pep.getPorts().add(podPort);
-                    }
-                }
-            }
-        }
-        return list;
-    }
-
-    public Map<String, IngressInfo> getIngressMapping() throws ApiException {
-        NetworkingV1beta1IngressList ingressList = K8sApi.listIngresses();
-        List<NetworkingV1beta1Ingress> ingresses = ingressList.getItems();
-        HashMap<String, IngressInfo> igrsMap = new HashMap<>();
-        for (int i = 0; i < ingresses.size(); i++) {
-            NetworkingV1beta1Ingress ingress = ingresses.get(i);
-            // 获取负载均衡IP地址列表
-            List<V1LoadBalancerIngress> lbIngresses = ingress.getStatus().getLoadBalancer().getIngress();
-            List<String> ips = new ArrayList<>(lbIngresses.size());
-            for (V1LoadBalancerIngress lbIngress : lbIngresses) {
-                if (StringUtils.isNotBlank(lbIngress.getIp())) {
-                    ips.add(lbIngress.getIp());
-                } else {
-                    ips.add(lbIngress.getHostname());
-                }
-            }
-            List<NetworkingV1beta1IngressRule> rules = ingress.getSpec().getRules();
-            for (NetworkingV1beta1IngressRule rule : rules) {
-                // 七层路由
-                List<NetworkingV1beta1HTTPIngressPath> paths = rule.getHttp().getPaths();
-                for (NetworkingV1beta1HTTPIngressPath path : paths) {
-                    String svcEndpointKey = path.getBackend().getServiceName() + ":" + path.getBackend().getServicePort();
-                    if (!igrsMap.containsKey(svcEndpointKey)) {
-                        igrsMap.put(svcEndpointKey, IngressInfo.builder().hostname(rule.getHost()).ips(ips).path(path.getPath()).build());
-                    }
-                }
-            }
-        }
-        return igrsMap;
+        }).collect(Collectors.toList());
+        List<NodeVO> nodes = nodeList.stream().map(n -> {
+            return NodeVO.builder()
+                    .uid(n.getUid())
+                    .name(n.getName())
+                    .internalIP(n.getInternalIP())
+                    .hostname(n.getHostname())
+                    .podCIDR(n.getPodCIDR())
+                    .build();
+        }).collect(Collectors.toList());
+        return TopologyVO.builder().ingresses(ingresses).services(svcs).pods(pods).nodes(nodes).build();
     }
 
     @Transactional
