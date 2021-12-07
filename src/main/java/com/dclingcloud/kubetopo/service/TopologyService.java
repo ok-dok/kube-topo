@@ -25,8 +25,6 @@ public class TopologyService {
     @Resource
     private CoreV1Api coreV1Api;
     @Resource
-    private NetworkingV1beta1Api networkingV1beta1Api;
-    @Resource
     private IngressRepository ingressRepository;
     @Resource
     private PathRuleRepository pathRuleRepository;
@@ -191,18 +189,16 @@ public class TopologyService {
                 List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
                 if (sp.getTargetPort().isInteger()) {
                     servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
-                } else {
+                } else if (CollectionUtils.isNotEmpty(podPortPOList)) {
                     servicePortPO.setTargetPort(podPortPOList.get(0).getPort());
                 }
-                // 设置pod port关联到service port
-                try {
-                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
-                } catch (NullPointerException e) {
-                    e.printStackTrace();
-                }
                 servicePortRepository.saveAndFlush(servicePortPO);
-                podPortRepository.saveAllAndFlush(podPortPOList);
-                if (pathRulePOList != null) {
+                // 设置pod port关联到service port
+                if (CollectionUtils.isNotEmpty(podPortPOList)) {
+                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
+                    podPortRepository.saveAllAndFlush(podPortPOList);
+                }
+                if (CollectionUtils.isNotEmpty(pathRulePOList)) {
                     pathRulePOList.forEach(p -> p.setBackend(servicePortPO));
                     pathRuleRepository.saveAllAndFlush(pathRulePOList);
                 }
@@ -266,9 +262,9 @@ public class TopologyService {
     @Transactional
     protected Map<String, List<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
         V1Endpoints endpoints = K8sApi.listEndpoints(namespace, svcName);
-        if (endpoints == null)
-            return Collections.emptyMap();
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
+        if (subsets == null)
+            return Collections.emptyMap();
         Map<String, List<PodPortPO>> podPortMap = new HashMap<>();
         for (V1EndpointSubset subset : subsets) {
             List<V1EndpointAddress> addresses = subset.getAddresses();
