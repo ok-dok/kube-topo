@@ -1,20 +1,20 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import java.io.Serializable;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-@Builder
+//@Builder
+@SuperBuilder
 @Entity
 @Table(name = "node", schema = "k8s")
 public class NodePO extends BasePO {
@@ -29,4 +29,5 @@ public class NodePO extends BasePO {
     private String internalIP;
     @Column
     private String podCIDR;
+
 }

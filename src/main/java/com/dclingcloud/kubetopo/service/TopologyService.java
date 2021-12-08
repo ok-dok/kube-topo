@@ -6,7 +6,6 @@ import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.apis.NetworkingV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -133,7 +132,7 @@ public class TopologyService {
     @Transactional
     public void loadResources() throws ApiException {
         // load nodes
-        V1NodeList nodeList = coreV1Api.listNode(null, null, null, null, null, null, null, null, null);
+        V1NodeList nodeList = K8sApi.listNodes();
         List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
             NodePO nodePO = NodePO.builder()
                     .name(n.getMetadata().getName())
@@ -151,7 +150,7 @@ public class TopologyService {
         }).collect(Collectors.toList());
         nodeRepository.saveAllAndFlush(nodePOList);
 
-        V1ServiceList serviceList = coreV1Api.listServiceForAllNamespaces(null, null, null, null, null, null, null, null, null);
+        V1ServiceList serviceList = K8sApi.listAllServices();
         Map<String, List<PathRulePO>> ingressPathMapping = loadIngressPathMapping();
         List<V1Service> services = serviceList.getItems();
         for (V1Service service : services) {
@@ -208,11 +207,11 @@ public class TopologyService {
 
     @Transactional
     public Map<String, List<PathRulePO>> loadIngressPathMapping() throws ApiException {
-        NetworkingV1beta1IngressList ingressList = K8sApi.listIngresses();
-        List<NetworkingV1beta1Ingress> ingresses = ingressList.getItems();
+        V1IngressList ingressList = K8sApi.listIngresses();
+        List<V1Ingress> ingresses = ingressList.getItems();
         HashMap<String, List<PathRulePO>> pathsMap = new HashMap<>();
         for (int i = 0; i < ingresses.size(); i++) {
-            NetworkingV1beta1Ingress ingress = ingresses.get(i);
+            V1Ingress ingress = ingresses.get(i);
             IngressPO ingressPO = IngressPO.builder()
                     .uid(ingress.getMetadata().getUid())
                     .name(ingress.getMetadata().getName())
@@ -232,11 +231,11 @@ public class TopologyService {
             ingressPO.setLoadBalancerHosts(StringUtils.join(ips, ","));
             ingressRepository.saveAndFlush(ingressPO);
 
-            List<NetworkingV1beta1IngressRule> rules = ingress.getSpec().getRules();
-            for (NetworkingV1beta1IngressRule rule : rules) {
+            List<V1IngressRule> rules = ingress.getSpec().getRules();
+            for (V1IngressRule rule : rules) {
                 // 七层路由
-                List<NetworkingV1beta1HTTPIngressPath> paths = rule.getHttp().getPaths();
-                for (NetworkingV1beta1HTTPIngressPath path : paths) {
+                List<V1HTTPIngressPath> paths = rule.getHttp().getPaths();
+                for (V1HTTPIngressPath path : paths) {
                     String id = ingressPO.getUid() + ":" + rule.getHost() + ":" + path.getPath() + ":" + path.getPathType();
                     String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                     String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
@@ -248,7 +247,7 @@ public class TopologyService {
                             .ingress(ingressPO)
                             .build();
                     pathRuleRepository.saveAndFlush(pathRulePO);
-                    String svcPortKey = path.getBackend().getServiceName() + ":" + path.getBackend().getServicePort();
+                    String svcPortKey = path.getBackend().getService().getName() + ":" + path.getBackend().getService().getPort();
                     if (!pathsMap.containsKey(svcPortKey)) {
                         pathsMap.put(svcPortKey, new ArrayList<PathRulePO>());
                     }
@@ -287,7 +286,7 @@ public class TopologyService {
 
                 // Headless services with no ports.
                 if (subset.getPorts().size() != 0) {
-                    for (V1EndpointPort port : subset.getPorts()) {
+                    for (CoreV1EndpointPort port : subset.getPorts()) {
                         String id = endpoints.getMetadata().getUid() + ":" + Optional.ofNullable(address.getTargetRef()).map(t -> t.getUid()).map(Objects::toString).orElse("null") + ":" + port.getPort() + ":" + port.getProtocol();
                         String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                         String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();

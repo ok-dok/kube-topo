@@ -1,18 +1,17 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import javax.persistence.*;
-import java.io.Serializable;
 import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-@Builder
+@SuperBuilder
 @Entity
 @Table(name = "pod", schema = "k8s")
 public class PodPO extends BasePO {
@@ -29,6 +28,8 @@ public class PodPO extends BasePO {
     private String hostname;
     @Column
     private String ip;
+    @Column
+    private String containerId;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod", fetch = FetchType.EAGER)
     private List<PodPortPO> ports;
 }

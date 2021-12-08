@@ -1,10 +1,10 @@
 k8s:
-#  url: https://10.168.1.121:6443
-#  token: cab559c45557a8f65868945cd9ce6bad
+  url: https://10.168.1.121:6443
+  token: cab559c45557a8f65868945cd9ce6bad
 #  url: https://172.16.100.1:6443
 #  token: 92b863fe8615861251e5faf8881006c6
-  url: https://172.16.100.10:6443
-  token: b4ce7e4bf21075c0cc8e56752088503c
+#  url: https://172.16.100.10:6443
+#  token: b4ce7e4bf21075c0cc8e56752088503c
 
 server:
   port: 8080
