@@ -3,6 +3,7 @@ package com.dclingcloud.kubetopo.entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -18,6 +19,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
+@Accessors(chain = true)
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @SuperBuilder

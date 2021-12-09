@@ -3,6 +3,7 @@ package com.dclingcloud.kubetopo.entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 
 import javax.persistence.Column;
@@ -13,7 +14,7 @@ import javax.persistence.Table;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-//@Builder
+@Accessors(chain = true)
 @SuperBuilder
 @Entity
 @Table(name = "node", schema = "k8s")
