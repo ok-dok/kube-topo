@@ -30,6 +30,6 @@ public class PodPO extends BasePO {
     private String ip;
     @Column
     private String containerId;
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod", fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
     private List<PodPortPO> ports;
 }

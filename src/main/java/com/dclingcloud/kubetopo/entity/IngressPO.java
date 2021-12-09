@@ -1,7 +1,6 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -27,6 +26,6 @@ public class IngressPO extends BasePO {
     private String className;
     @Column
     private String loadBalancerHosts;
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress", fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress")
     private List<PathRulePO> pathRules;
 }

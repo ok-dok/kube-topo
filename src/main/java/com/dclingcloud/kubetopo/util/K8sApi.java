@@ -26,6 +26,11 @@ public class K8sApi {
         return coreV1Api.listServiceForAllNamespacesAsync(true, null, null, null, null, null, null, null, null, true, null);
     }
 
+
+    public static Call createServicesCall(String resourceVersion) throws ApiException {
+        return coreV1Api.listServiceForAllNamespacesCall(true, null, null, null, null, null, resourceVersion, null, null, true, null);
+    }
+
     public static V1IngressList listIngresses() throws ApiException {
         return listIngresses(false);
     }
@@ -37,6 +42,12 @@ public class K8sApi {
     public static Call watchIngressesAsync() throws ApiException {
         return networkingV1Api.listIngressForAllNamespacesAsync(true, null, null, null, null, null, null, null, null, true, null);
     }
+
+
+    public static Call createIngressesCall(String resourceVersion) throws ApiException {
+        return networkingV1Api.listIngressForAllNamespacesCall(true, null, null, null, null, null, resourceVersion, null, null, true, null);
+    }
+
 
     public static V1PodList listAllPods() throws ApiException {
         return listAllPods(false);
@@ -69,6 +80,10 @@ public class K8sApi {
 
     public static Call watchNodesAsync() throws ApiException {
         return coreV1Api.listNodeAsync(null, true, null, null, null, null, null, null, null, true, null);
+    }
+
+    public static Call createNodesCall(String resourceVersion) throws ApiException {
+        return coreV1Api.listNodeCall(null, true, null, null, null, null, resourceVersion, null, null, true, null);
     }
 
     @Resource

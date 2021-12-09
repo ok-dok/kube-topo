@@ -34,6 +34,6 @@ public class ServicePO extends BasePO {
     @Column
     private String externalName;
 
-    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "service", fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "service")
     private List<ServicePortPO> ports;
 }
