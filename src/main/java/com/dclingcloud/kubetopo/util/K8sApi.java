@@ -86,6 +86,10 @@ public class K8sApi {
         return coreV1Api.listNodeCall(null, true, null, null, null, null, resourceVersion, null, null, true, null);
     }
 
+    public static Call createEndpointsCall(String resourceVersion) throws ApiException {
+        return coreV1Api.listEndpointsForAllNamespacesCall(true, null, null, null, null, null, resourceVersion, null, null, true, null);
+    }
+
     @Resource
     public void setCoreV1Api(CoreV1Api coreV1Api) {
         K8sApi.coreV1Api = coreV1Api;

@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
 import java.util.List;
@@ -29,5 +31,6 @@ public class IngressPO extends BasePO {
     @Column
     private String loadBalancerHosts;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress")
+    @NotFound(action = NotFoundAction.IGNORE)
     private List<PathRulePO> pathRules;
 }

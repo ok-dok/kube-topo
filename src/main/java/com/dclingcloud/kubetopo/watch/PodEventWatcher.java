@@ -50,7 +50,7 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
         switch (type) {
             case ADDED:
                 try {
-                    podService.save(pod, ADDED);
+                    podService.saveOrUpdate(pod, ADDED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;
@@ -66,7 +66,7 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
                 break;
             case MODIFIED:
                 try {
-                    podService.save(pod, MODIFIED);
+                    podService.saveOrUpdate(pod, MODIFIED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;

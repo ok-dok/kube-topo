@@ -16,4 +16,7 @@ public interface PathRuleRepository extends JpaRepository<PathRulePO, String> {
 
     @Query("select uid from PathRulePO where backend = :servicePort")
     List<String> findAllUidsByServicePort(ServicePortPO servicePort);
+
+    @Query("update PathRulePO set status = :status where uid = :uid")
+    void updateStatusByUid(String uid, String status);
 }

@@ -1,7 +1,7 @@
 package com.dclingcloud.kubetopo.controller;
 
 import com.dclingcloud.kubetopo.entity.PodPortPO;
-import com.dclingcloud.kubetopo.service.TopologyService;
+import com.dclingcloud.kubetopo.service.impl.TopologyServiceImpl;
 import com.dclingcloud.kubetopo.vo.JsonResult;
 import com.dclingcloud.kubetopo.vo.TopologyVO;
 import io.kubernetes.client.openapi.ApiException;
@@ -17,13 +17,13 @@ import javax.annotation.Resource;
 @RequestMapping("/v1/k8s/topo")
 public class TopologyController {
     @Resource
-    private TopologyService topologyService;
+    private TopologyServiceImpl topologyService;
 
     @GetMapping("/all")
     public JsonResult<TopologyVO> getServiceTopology() {
         try {
             topologyService.loadResources();
-            TopologyVO topo = topologyService.getTopo();
+            TopologyVO topo = topologyService.getTopology();
             return JsonResult.<TopologyVO>builder().code("1").status(JsonResult.JsonResultStatus.SUCCESS).data(topo).build();
         } catch (ApiException e) {
             System.out.println(e.getResponseBody());

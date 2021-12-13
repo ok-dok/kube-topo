@@ -5,7 +5,9 @@ import com.dclingcloud.kubetopo.repository.NodeRepository;
 import com.dclingcloud.kubetopo.service.NodeService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import io.kubernetes.client.openapi.models.V1Node;
+import io.kubernetes.client.openapi.models.V1NodeAddress;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -21,21 +23,24 @@ public class NodeServiceImpl implements NodeService {
 
     @Transactional
     @Override
-    public void save(V1Node node, String status) throws K8sServiceException {
-        NodePO nodePO = NodePO.builder()
-                .uid(node.getMetadata().getUid())
-                .name(node.getMetadata().getName())
-                .podCIDR(node.getSpec().getPodCIDR())
-                .status(status)
-                .gmtCreate(node.getMetadata().getCreationTimestamp().toLocalDateTime())
-                .build();
-        node.getStatus().getAddresses().forEach(addr -> {
-            if ("Hostname".equals(addr.getType())) {
-                nodePO.setHostname(addr.getAddress());
-            } else if ("InternalIP".equals(addr.getType())) {
-                nodePO.setInternalIP(addr.getAddress());
+    public void saveOrUpdate(V1Node node, String status) throws K8sServiceException {
+        NodePO nodePO = nodeRepository.findById(node.getMetadata().getUid())
+                .orElse(NodePO.builder()
+                        .uid(node.getMetadata().getUid())
+                        .build());
+        nodePO.setName(node.getMetadata().getName())
+                .setPodCIDR(node.getSpec().getPodCIDR())
+                .setStatus(status)
+                .setGmtCreate(node.getMetadata().getCreationTimestamp().toLocalDateTime());
+        if (CollectionUtils.isNotEmpty(node.getStatus().getAddresses())) {
+            for (V1NodeAddress addr : node.getStatus().getAddresses()) {
+                if ("Hostname".equals(addr.getType())) {
+                    nodePO.setHostname(addr.getAddress());
+                } else if ("InternalIP".equals(addr.getType())) {
+                    nodePO.setInternalIP(addr.getAddress());
+                }
             }
-        });
+        }
         try {
             nodeRepository.save(nodePO);
         } catch (PersistenceException e) {
@@ -54,6 +59,16 @@ public class NodeServiceImpl implements NodeService {
         } catch (PersistenceException e) {
             log.error("Error: update {}'s status to 'DELETED' failed. uid={}", NodePO.class.getName(), uid, e);
             throw new K8sServiceException("Unable to delete node", e);
+        }
+    }
+
+    @Override
+    public String getNameByHostIP(String hostIP) {
+        try {
+            return nodeRepository.getNameByInternalIP(hostIP);
+        } catch (Exception e) {
+            log.error("Error: get {}'s name by hostIP '{}' failed.", NodePO.class.getName(), hostIP, e);
+            throw new K8sServiceException("Unable to get node's name", e);
         }
     }
 

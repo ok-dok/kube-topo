@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
 
@@ -59,9 +61,11 @@ public class PodPortPO extends BasePO {
 
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "service_port_uid")
+    @NotFound(action = NotFoundAction.IGNORE)
     private ServicePortPO servicePort;
 
     @ManyToOne(cascade = CascadeType.DETACH)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "podUid")
     private PodPO pod;
 }

@@ -1,6 +1,6 @@
 package com.dclingcloud.kubetopo.watch;
 
-import com.dclingcloud.kubetopo.service.TopologyService;
+import com.dclingcloud.kubetopo.service.impl.TopologyServiceImpl;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public abstract class EventWatcher<T extends KubernetesObject> implements EventType, InitializingBean {
     @Resource
-    protected TopologyService topologyService;
+    protected TopologyServiceImpl topologyService;
     @Resource
     protected ApiClient apiClient;
     protected String resourceVersion = null;

@@ -35,7 +35,7 @@ public class NodeEventWatcher extends EventWatcher<V1Node> {
         switch (type.toUpperCase()) {
             case ADDED:
                 try {
-                    nodeService.save(node, ADDED);
+                    nodeService.saveOrUpdate(node, ADDED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;
@@ -51,7 +51,7 @@ public class NodeEventWatcher extends EventWatcher<V1Node> {
                 break;
             case MODIFIED:
                 try {
-                    nodeService.save(node, MODIFIED);
+                    nodeService.saveOrUpdate(node, MODIFIED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;

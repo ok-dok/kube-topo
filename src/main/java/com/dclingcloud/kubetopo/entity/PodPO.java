@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
 import java.util.List;
@@ -33,5 +35,6 @@ public class PodPO extends BasePO {
     @Column
     private String containerId;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
+    @NotFound(action = NotFoundAction.IGNORE)
     private List<PodPortPO> ports;
 }

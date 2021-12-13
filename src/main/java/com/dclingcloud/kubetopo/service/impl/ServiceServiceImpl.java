@@ -22,20 +22,19 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Override
     @Transactional
-    public void save(V1Service service, String status) throws K8sServiceException {
+    public void saveOrUpdate(V1Service service, String status) throws K8sServiceException {
+        ServicePO svcPO = serviceRepository.findById(service.getMetadata().getUid())
+                .orElse(ServicePO.builder().uid(service.getMetadata().getUid()).build());
         V1ServiceSpec spec = service.getSpec();
-        ServicePO svcPO = ServicePO.builder()
-                .uid(service.getMetadata().getUid())
-                .name(service.getMetadata().getName())
-                .namespace(service.getMetadata().getNamespace())
-                .type(spec.getType())
-                .clusterIP(spec.getClusterIP())
-                .externalName(spec.getExternalName())
-                .externalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
-                .loadBalancerIP(spec.getLoadBalancerIP())
-                .status(status)
-                .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
-                .build();
+        svcPO.setName(service.getMetadata().getName())
+                .setNamespace(service.getMetadata().getNamespace())
+                .setType(spec.getType())
+                .setClusterIP(spec.getClusterIP())
+                .setExternalName(spec.getExternalName())
+                .setExternalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
+                .setLoadBalancerIP(spec.getLoadBalancerIP())
+                .setStatus(status)
+                .setGmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime());
         try {
             serviceRepository.save(svcPO);
         } catch (PersistenceException e) {

@@ -2,10 +2,12 @@ package com.dclingcloud.kubetopo.service.impl;
 
 import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.repository.PodRepository;
+import com.dclingcloud.kubetopo.service.NodeService;
 import com.dclingcloud.kubetopo.service.PodService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -17,21 +19,24 @@ import java.util.Optional;
 public class PodServiceImpl implements PodService {
     @Resource
     private PodRepository podRepository;
+    @Resource
+    private NodeService nodeService;
 
     @Transactional
     @Override
-    public void save(V1Pod pod, String status) throws K8sServiceException {
-        PodPO podPO = PodPO.builder()
-                .uid(pod.getMetadata().getUid())
-                .name(pod.getMetadata().getName())
-                .namespace(pod.getMetadata().getNamespace())
-                .ip(pod.getStatus().getPodIP())
-                .containerId(Optional.ofNullable(pod.getStatus().getContainerStatuses())
+    public void saveOrUpdate(V1Pod pod, String status) throws K8sServiceException {
+        PodPO podPO = podRepository.findById(pod.getMetadata().getUid())
+                .orElse(PodPO.builder().uid(pod.getMetadata().getUid()).build());
+        podPO.setName(pod.getMetadata().getName())
+                .setIp(pod.getStatus().getPodIP())
+                .setContainerId(Optional.ofNullable(pod.getStatus().getContainerStatuses())
                         .map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null))
-                .status(status)
-                .gmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime())
-                //.nodeName()
-                .build();
+                .setStatus(status)
+                .setGmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime());
+        if (StringUtils.isBlank(podPO.getNodeName())) {
+            String nodeName = nodeService.getNameByHostIP(pod.getStatus().getHostIP());
+            podPO.setNodeName(nodeName);
+        }
         save(podPO);
     }
 

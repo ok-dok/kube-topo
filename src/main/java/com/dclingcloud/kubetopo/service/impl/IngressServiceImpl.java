@@ -24,15 +24,16 @@ public class IngressServiceImpl implements IngressService {
 
     @Transactional
     @Override
-    public void save(V1Ingress ingress, String status) throws K8sServiceException {
-        IngressPO ingressPO = IngressPO.builder()
-                .uid(ingress.getMetadata().getUid())
-                .name(ingress.getMetadata().getName())
-                .namespace(ingress.getMetadata().getNamespace())
-                .className(ingress.getSpec().getIngressClassName())
-                .status(status)
-                .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
-                .build();
+    public void saveOrUpdate(V1Ingress ingress, String status) throws K8sServiceException {
+        IngressPO ingressPO = ingressRepository.findById(ingress.getMetadata().getUid())
+                .orElse(IngressPO.builder()
+                        .uid(ingress.getMetadata().getUid())
+                        .build());
+        ingressPO.setName(ingress.getMetadata().getName())
+                .setNamespace(ingress.getMetadata().getNamespace())
+                .setClassName(ingress.getSpec().getIngressClassName())
+                .setStatus(status)
+                .setGmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime());
         // 获取负载均衡IP地址列表
         List<V1LoadBalancerIngress> lbIngresses = ingress.getStatus().getLoadBalancer().getIngress();
         List<String> ips = new ArrayList<>(lbIngresses.size());
@@ -47,7 +48,7 @@ public class IngressServiceImpl implements IngressService {
         try {
             ingressRepository.save(ingressPO);
         } catch (PersistenceException e) {
-            log.error("Error: save {} failed. {}", IngressPO.class.getName(), ingressPO, e);
+            log.error("Error: save or update {} failed. {}", IngressPO.class.getName(), ingressPO, e);
             throw new K8sServiceException("Unable to save " + IngressPO.class.getSimpleName(), e);
         }
     }

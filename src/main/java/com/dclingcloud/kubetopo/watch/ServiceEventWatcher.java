@@ -31,7 +31,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
         switch (type.toUpperCase()) {
             case ADDED:
                 try {
-                    serviceService.save(service, ADDED);
+                    serviceService.saveOrUpdate(service, ADDED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;
@@ -47,7 +47,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
                 break;
             case MODIFIED:
                 try {
-                    serviceService.save(service, MODIFIED);
+                    serviceService.saveOrUpdate(service, MODIFIED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;

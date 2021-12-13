@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
 import java.util.List;
@@ -38,13 +40,16 @@ public class ServicePortPO extends BasePO {
     private Integer targetPort;
 
     @ManyToOne(cascade = CascadeType.DETACH)
+    @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "service_uid")
     private ServicePO service;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "backend")
+    @NotFound(action = NotFoundAction.IGNORE)
     private List<PathRulePO> ingressPathRules;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "servicePort")
+    @NotFound(action = NotFoundAction.IGNORE)
     private List<PodPortPO> podPorts;
 
     @Override

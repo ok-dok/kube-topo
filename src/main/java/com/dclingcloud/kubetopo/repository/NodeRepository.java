@@ -9,4 +9,7 @@ import org.springframework.stereotype.Repository;
 public interface NodeRepository extends JpaRepository<NodePO, String> {
     @Query("update NodePO set status = :status where uid = :uid")
     void updateStatusByUid(String uid, String status);
+
+    @Query("select name from NodePO where internalIP = :ip")
+    String getNameByInternalIP(String ip);
 }
