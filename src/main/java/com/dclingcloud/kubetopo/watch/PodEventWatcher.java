@@ -49,6 +49,7 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
                         .map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null));
         switch (type) {
             case ADDED:
+            case MODIFIED:
                 try {
                     podService.saveOrUpdate(pod, ADDED);
                 } catch (K8sServiceException e) {
@@ -59,14 +60,6 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
             case DELETED:
                 try {
                     podService.delete(pod);
-                } catch (K8sServiceException e) {
-                    // TODO 保存异常处理，重试？
-                    throw e;
-                }
-                break;
-            case MODIFIED:
-                try {
-                    podService.saveOrUpdate(pod, MODIFIED);
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;

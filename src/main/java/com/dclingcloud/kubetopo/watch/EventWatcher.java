@@ -15,6 +15,7 @@ import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -100,6 +101,9 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
             if (e.getCause() instanceof SocketTimeoutException) {
                 // clean watch, wait to retry
                 cleanWatch();
+            } else if (e.getCause() instanceof SocketException) {
+                // Socket Closed
+                cleanWatch();
             } else {
                 throw e;
             }
@@ -119,7 +123,9 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
     @PreDestroy
     public void cleanWatch() {
         try {
-            this.watch.close();
+            if(this.watch != null){
+                this.watch.close();
+            }
         } catch (IOException ex) {
             // do nothing
         } finally {

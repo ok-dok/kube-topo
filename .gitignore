@@ -42,7 +42,6 @@ target/
 *.iws
 *.iml
 *.ipr
-.jpb
 
 ### NetBeans ###
 /nbproject/private/
@@ -59,3 +58,4 @@ build/
 
 ### 数据库文件 ###
 .db
+

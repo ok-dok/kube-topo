@@ -15,4 +15,7 @@ public interface PodPortRepository extends JpaRepository<PodPortPO, String> {
     List<String> findAllUidsByServicePort(ServicePortPO servicePort);
 
     List<PodPortPO> findAllByPod(PodPO pod);
+
+    @Query("update PodPortPO set status = :status, gmtModified = current_timestamp where epUid = :epUid")
+    void updateStatusByEpUid(String epUid, String status);
 }
