@@ -1,10 +1,11 @@
 package com.dclingcloud.kubetopo.service;
 
+import com.dclingcloud.kubetopo.entity.IngressPO;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import io.kubernetes.client.openapi.models.V1Ingress;
 
 public interface IngressService {
-    void saveOrUpdate(V1Ingress ingress, String status) throws K8sServiceException;
+    IngressPO saveOrUpdate(V1Ingress ingress, String status) throws K8sServiceException;
 
     /**
      * it's not a real delete

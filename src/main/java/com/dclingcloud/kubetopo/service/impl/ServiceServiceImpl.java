@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.persistence.PersistenceException;
 import javax.transaction.Transactional;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -52,6 +53,16 @@ public class ServiceServiceImpl implements ServiceService {
         } catch (PersistenceException e) {
             log.error("Error: update {}'s status to 'DELETED' failed. uid={}", V1Service.class.getName(), uid, e);
             throw new K8sServiceException("Unable to delete service", e);
+        }
+    }
+
+    @Override
+    public Optional<ServicePO> findByName(String name) {
+        try {
+            return serviceRepository.findByNameAndStatusNot(name, "DELETED");
+        } catch (Exception e) {
+            log.error("Error: query {} by name who's status is not 'DELETED' failed. name={}", V1Service.class.getName(), name, e);
+            throw new K8sServiceException("Unable to find service", e);
         }
     }
 }

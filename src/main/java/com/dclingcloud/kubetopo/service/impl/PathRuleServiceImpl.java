@@ -49,4 +49,14 @@ public class PathRuleServiceImpl implements PathRuleService {
             throw new K8sServiceException("Unable to save " + PathRulePO.class.getSimpleName() + " list", e);
         }
     }
+
+    @Override
+    public void deleteAllByIngressUid(String ingressUid) {
+        try {
+            pathRuleRepository.updateStatusByIngressUid(ingressUid, "DELETED");
+        } catch (Exception e) {
+            log.error("Error: update {}'s status to 'DELETED' by ingress uid failed. ingressUid={}", PathRulePO.class.getName(), ingressUid, e);
+            throw new K8sServiceException("Unable to delete " + PathRulePO.class.getSimpleName(), e);
+        }
+    }
 }

@@ -11,7 +11,7 @@ server:
   address: 127.0.0.1
 spring:
   jpa:
-    show-sql: true   #打印sql
+    show-sql: false   #打印sql
     hibernate:
       ddl-auto: update
   sql:

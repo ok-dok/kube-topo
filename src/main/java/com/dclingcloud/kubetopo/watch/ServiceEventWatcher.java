@@ -49,6 +49,8 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
                 .append(service.getMetadata().getNamespace());
         switch (type.toUpperCase()) {
             case MODIFIED:
+                processModifiedEvent(service, eventLog);
+                break;
             case ADDED:
                 processAddedEvent(service, eventLog);
                 break;
@@ -64,8 +66,16 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
     }
 
     private void processAddedEvent(V1Service service, StringBuilder eventLog) {
+        processSaveEvent(service, eventLog, ADDED);
+    }
+
+    private void processModifiedEvent(V1Service service, StringBuilder eventLog) {
+        processSaveEvent(service, eventLog, MODIFIED);
+    }
+
+    private void processSaveEvent(V1Service service, StringBuilder eventLog, String status) {
         try {
-            serviceService.saveOrUpdate(service, ADDED);
+            serviceService.saveOrUpdate(service, status);
             V1ServiceSpec spec = service.getSpec();
             if (CollectionUtils.isEmpty(spec.getPorts())) {
                 return;

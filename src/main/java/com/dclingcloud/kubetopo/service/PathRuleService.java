@@ -17,4 +17,11 @@ public interface PathRuleService {
     void delete(PathRulePO pathRule) throws K8sServiceException;
 
     void saveAll(List<PathRulePO> pathRules) throws K8sServiceException;
+
+    /**
+     * it's not a real delete
+     *
+     * @param ingressUid
+     */
+    void deleteAllByIngressUid(String ingressUid);
 }

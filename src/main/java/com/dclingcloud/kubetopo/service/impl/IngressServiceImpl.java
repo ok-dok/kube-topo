@@ -24,7 +24,7 @@ public class IngressServiceImpl implements IngressService {
 
     @Transactional
     @Override
-    public void saveOrUpdate(V1Ingress ingress, String status) throws K8sServiceException {
+    public IngressPO saveOrUpdate(V1Ingress ingress, String status) throws K8sServiceException {
         IngressPO ingressPO = ingressRepository.findById(ingress.getMetadata().getUid())
                 .orElse(IngressPO.builder()
                         .uid(ingress.getMetadata().getUid())
@@ -46,7 +46,7 @@ public class IngressServiceImpl implements IngressService {
         }
         ingressPO.setLoadBalancerHosts(StringUtils.join(ips, ","));
         try {
-            ingressRepository.save(ingressPO);
+            return ingressRepository.save(ingressPO);
         } catch (PersistenceException e) {
             log.error("Error: save or update {} failed. {}", IngressPO.class.getName(), ingressPO, e);
             throw new K8sServiceException("Unable to save " + IngressPO.class.getSimpleName(), e);

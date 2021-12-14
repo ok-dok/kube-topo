@@ -4,6 +4,7 @@ import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +17,7 @@ public interface PodPortRepository extends JpaRepository<PodPortPO, String> {
 
     List<PodPortPO> findAllByPod(PodPO pod);
 
+    @Modifying
     @Query("update PodPortPO set status = :status, gmtModified = current_timestamp where epUid = :epUid")
     void updateStatusByEpUid(String epUid, String status);
 }
