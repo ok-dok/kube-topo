@@ -15,6 +15,7 @@ import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.net.NoRouteToHostException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.regex.Matcher;
@@ -94,7 +95,11 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
                     cleanWatch();
                     break;
                 default:
-                    throw e;
+                    if (e.getCause() instanceof NoRouteToHostException) {
+                        log.error("Unable to connect to k8s apiserver, reason: {}.", e.getCause().getMessage(), e.getCause());
+                    } else {
+                        throw e;
+                    }
             }
         } catch (Exception e) {
             // IO Exception or SocketTimeoutException
