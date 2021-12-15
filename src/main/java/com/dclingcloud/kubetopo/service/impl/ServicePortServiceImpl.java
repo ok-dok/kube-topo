@@ -1,5 +1,6 @@
 package com.dclingcloud.kubetopo.service.impl;
 
+import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
 import com.dclingcloud.kubetopo.repository.ServicePortRepository;
 import com.dclingcloud.kubetopo.service.ServicePortService;
@@ -52,6 +53,17 @@ public class ServicePortServiceImpl implements ServicePortService {
         } catch (Exception e) {
             log.error("Error: query {} failed by service name \"{}\" and port name \"{}\" or number \"{}\".", ServicePortPO.class.getName(), serviceName, port.getName(), port.getNumber(), e);
             throw new K8sServiceException("Unable to query " + ServicePortPO.class.getName(), e);
+        }
+    }
+
+    @Transactional
+    @Override
+    public void deleteAllByServiceUid(String serviceUid) {
+        try {
+            servicePortRepository.updateStatusByServiceUid(serviceUid, "DELETED");
+        } catch (Exception e) {
+            log.error("Error: update {}'s status to 'DELETED' failed. serviceUid={}", PodPortPO.class.getName(), serviceUid, e);
+            throw new K8sServiceException("Unable to delete " + ServicePortPO.class.getSimpleName() + " by serviceUid", e);
         }
     }
 }

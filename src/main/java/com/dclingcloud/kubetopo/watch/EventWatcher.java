@@ -110,7 +110,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
         }
     }
 
-    protected abstract void processEventObject(String type, Object object, StringBuilder eventLog);
+    protected abstract void processEventObject(String type, T object, StringBuilder eventLog);
 
     protected abstract Watch<T> createWatch() throws ApiException;
 
@@ -123,7 +123,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
     @PreDestroy
     public void cleanWatch() {
         try {
-            if(this.watch != null){
+            if (this.watch != null) {
                 this.watch.close();
             }
         } catch (IOException ex) {

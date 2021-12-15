@@ -4,7 +4,6 @@ import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.service.impl.TopologyServiceImpl;
 import com.dclingcloud.kubetopo.vo.JsonResult;
 import com.dclingcloud.kubetopo.vo.TopologyVO;
-import io.kubernetes.client.openapi.ApiException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,17 +20,8 @@ public class TopologyController {
 
     @GetMapping("/all")
     public JsonResult<TopologyVO> getServiceTopology() {
-        try {
-            topologyService.loadResources();
-            TopologyVO topo = topologyService.getTopology();
-            return JsonResult.<TopologyVO>builder().code("1").status(JsonResult.JsonResultStatus.SUCCESS).data(topo).build();
-        } catch (ApiException e) {
-            System.out.println(e.getResponseBody());
-            e.printStackTrace();
-            return null;
-        }
-//
-//        return null;
+        TopologyVO topo = topologyService.getTopology();
+        return JsonResult.<TopologyVO>builder().code("1").status(JsonResult.JsonResultStatus.SUCCESS).data(topo).build();
     }
 
     @GetMapping("mapping/endpoints/{ep}")

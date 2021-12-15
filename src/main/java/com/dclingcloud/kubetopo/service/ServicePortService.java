@@ -13,4 +13,12 @@ public interface ServicePortService {
     void saveAll(Collection<ServicePortPO> servicePorts) throws K8sServiceException;
 
     Optional<ServicePortPO> findOneByServiceNameAndPort(String serviceName, V1ServiceBackendPort port);
+
+
+    /**
+     * it's not a real delete action
+     *
+     * @param serviceUid
+     */
+    void deleteAllByServiceUid(String serviceUid);
 }

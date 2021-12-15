@@ -35,19 +35,28 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
     private PodService podService;
 
     @Override
-    protected void processEventObject(String type, Object object, StringBuilder eventLog) {
+    protected void processEventObject(String type, V1Endpoints object, StringBuilder eventLog) {
         V1Endpoints endpoints = (V1Endpoints) object;
         switch (type) {
-            case ADDED:
             case MODIFIED:
-//                processAddedEvent(endpoints, eventLog);
+                processModifiedEvent(endpoints, eventLog);
+            case ADDED:
+                processAddedEvent(endpoints, eventLog);
                 break;
             case DELETED:
                 processDeleteEvent(endpoints, eventLog);
                 break;
         }
-
     }
+
+    private void processAddedEvent(V1Endpoints endpoints, StringBuilder eventLog) {
+        processSaveEvent(endpoints, eventLog, ADDED);
+    }
+
+    private void processModifiedEvent(V1Endpoints endpoints, StringBuilder eventLog) {
+        processSaveEvent(endpoints, eventLog, MODIFIED);
+    }
+
 
     private void processDeleteEvent(V1Endpoints endpoints, StringBuilder eventLog) {
         String epUid = endpoints.getMetadata().getUid();
@@ -59,7 +68,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
         }
     }
 
-    private void processAddedEvent(V1Endpoints endpoints, StringBuilder eventLog) {
+    private void processSaveEvent(V1Endpoints endpoints, StringBuilder eventLog, String status) {
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
         if (subsets == null)
             return;
@@ -98,7 +107,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
                                 .uid(uid)
                                 .epUid(endpoints.getMetadata().getUid())
                                 .pod(podPO)
-                                .status(ADDED)
+                                .status(status)
                                 .name(port.getName())
                                 .port(port.getPort())
                                 .protocol(port.getProtocol())

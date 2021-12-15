@@ -41,7 +41,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
     private PodPortService podPortService;
 
     @Override
-    protected void processEventObject(String type, Object object, StringBuilder eventLog) {
+    protected void processEventObject(String type, V1Service object, StringBuilder eventLog) {
         V1Service service = (V1Service) object;
         eventLog.append(", Name: ")
                 .append(service.getMetadata().getName())
@@ -57,6 +57,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
             case DELETED:
                 try {
                     serviceService.delete(service);
+                    servicePortService.deleteAllByServiceUid(service.getMetadata().getUid());
                 } catch (K8sServiceException e) {
                     // TODO 保存异常处理，重试？
                     throw e;
@@ -71,6 +72,10 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
 
     private void processModifiedEvent(V1Service service, StringBuilder eventLog) {
         processSaveEvent(service, eventLog, MODIFIED);
+    }
+
+    private void processDeleteEvent(V1Service service, StringBuilder eventLog) {
+
     }
 
     private void processSaveEvent(V1Service service, StringBuilder eventLog, String status) {

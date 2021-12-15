@@ -1,5 +1,6 @@
 package com.dclingcloud.kubetopo.watch;
 
+import com.dclingcloud.kubetopo.service.PodPortService;
 import com.dclingcloud.kubetopo.service.PodService;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
@@ -24,9 +25,11 @@ import java.util.Optional;
 public class PodEventWatcher extends EventWatcher<V1Pod> {
     @Resource
     private PodService podService;
+    @Resource
+    private PodPortService podPortService;
 
     @Override
-    protected void processEventObject(String type, Object object, StringBuilder eventLog) {
+    protected void processEventObject(String type, V1Pod object, StringBuilder eventLog) {
         V1Pod pod = (V1Pod) object;
         String status = pod.getStatus().getPhase();
         if ("Running".equalsIgnoreCase(status)) {

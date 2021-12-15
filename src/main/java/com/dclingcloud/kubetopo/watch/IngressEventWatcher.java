@@ -43,7 +43,7 @@ public class IngressEventWatcher extends EventWatcher<V1Ingress> {
     private ServiceService serviceService;
 
     @Override
-    protected void processEventObject(String type, Object object, StringBuilder eventLog) {
+    protected void processEventObject(String type, V1Ingress object, StringBuilder eventLog) {
         V1Ingress ingress = (V1Ingress) object;
         switch (type.toUpperCase()) {
             case ADDED:

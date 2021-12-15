@@ -23,7 +23,7 @@ public class NodeEventWatcher extends EventWatcher<V1Node> {
     private NodeService nodeService;
 
     @Override
-    protected void processEventObject(String type, Object object, StringBuilder eventLog) {
+    protected void processEventObject(String type, V1Node object, StringBuilder eventLog) {
         V1Node node = (V1Node) object;
         eventLog.append(", IP: ")
                 .append(Optional.ofNullable(node.getStatus().getAddresses())
