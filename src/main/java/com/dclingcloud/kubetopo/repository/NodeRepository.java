@@ -14,4 +14,8 @@ public interface NodeRepository extends JpaRepository<NodePO, String> {
 
     @Query("select name from NodePO where internalIP = :ip")
     String getNameByInternalIP(String ip);
+
+    @Modifying
+    @Query("update NodePO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

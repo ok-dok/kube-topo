@@ -62,7 +62,7 @@ public class NodeEventWatcher extends EventWatcher<V1Node> {
 
     @Override
     protected Watch<V1Node> createWatch() throws ApiException {
-        Call call = K8sApi.createNodesCall(this.resourceVersion);
+        Call call = K8sApi.createNodesCall(resourceVersionHolder.toString());
         Watch<V1Node> watch = Watch.createWatch(apiClient, call, new TypeToken<Watch.Response<V1Node>>() {
         }.getType());
         return watch;

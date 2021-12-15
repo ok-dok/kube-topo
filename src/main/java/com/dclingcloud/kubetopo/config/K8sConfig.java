@@ -1,19 +1,17 @@
 package com.dclingcloud.kubetopo.config;
 
+import com.dclingcloud.kubetopo.util.ResourceVersionHolder;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.Data;
-import okhttp3.OkHttpClient;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-
-import java.util.concurrent.TimeUnit;
 
 @SpringBootConfiguration
 @ConfigurationProperties("k8s")
@@ -23,6 +21,11 @@ import java.util.concurrent.TimeUnit;
 public class K8sConfig {
     private String url;
     private String token;
+
+    @Bean
+    public ResourceVersionHolder resourceVersonHolder() {
+        return new ResourceVersionHolder();
+    }
 
     @Bean
     public ApiClient createApiClient() {

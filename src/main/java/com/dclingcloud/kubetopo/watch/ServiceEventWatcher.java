@@ -214,7 +214,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
 
     @Override
     protected Watch<V1Service> createWatch() throws ApiException {
-        Call call = K8sApi.createServicesCall(this.resourceVersion);
+        Call call = K8sApi.createServicesCall(resourceVersionHolder.toString());
         Watch<V1Service> watch = Watch.createWatch(apiClient, call, new TypeToken<Watch.Response<V1Service>>() {
         }.getType());
         return watch;

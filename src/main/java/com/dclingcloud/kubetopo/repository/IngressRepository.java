@@ -16,4 +16,8 @@ public interface IngressRepository extends JpaRepository<IngressPO, String> {
     @Modifying
     @Query("update IngressPO set status = :status where uid = :uid")
     void updateStatusByUid(String uid, String status);
+
+    @Modifying
+    @Query("update IngressPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

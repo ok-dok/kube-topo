@@ -15,4 +15,8 @@ public interface ServiceRepository extends JpaRepository<ServicePO, String> {
     void updateStatusByUid(String uid, String status);
 
     Optional<ServicePO> findByNameAndStatusNot(String name, String status);
+
+    @Modifying
+    @Query("update ServicePO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

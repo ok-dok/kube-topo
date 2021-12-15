@@ -111,7 +111,7 @@ public class IngressEventWatcher extends EventWatcher<V1Ingress> {
 
     @Override
     protected Watch<V1Ingress> createWatch() throws ApiException {
-        Call call = K8sApi.createIngressesCall(this.resourceVersion);
+        Call call = K8sApi.createIngressesCall(resourceVersionHolder.toString());
         Watch<V1Ingress> watch = Watch.createWatch(apiClient, call, new TypeToken<Watch.Response<V1Ingress>>() {
         }.getType());
         return watch;

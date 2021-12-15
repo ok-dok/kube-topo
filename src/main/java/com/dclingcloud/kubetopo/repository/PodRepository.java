@@ -11,4 +11,8 @@ public interface PodRepository extends JpaRepository<PodPO, String> {
     @Modifying
     @Query("update PodPO set status = :status where uid = :uid")
     void updateStatusByUid(String uid, String status);
+
+    @Modifying
+    @Query("update PodPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

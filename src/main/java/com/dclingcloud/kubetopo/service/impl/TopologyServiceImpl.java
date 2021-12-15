@@ -4,22 +4,27 @@ import com.dclingcloud.kubetopo.entity.*;
 import com.dclingcloud.kubetopo.repository.*;
 import com.dclingcloud.kubetopo.service.TopologyService;
 import com.dclingcloud.kubetopo.util.K8sApi;
+import com.dclingcloud.kubetopo.util.K8sServiceException;
+import com.dclingcloud.kubetopo.util.ResourceVersionHolder;
 import com.dclingcloud.kubetopo.vo.*;
+import com.dclingcloud.kubetopo.watch.EventType;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Base64Utils;
-import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
+import javax.persistence.PersistenceException;
 import javax.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class TopologyServiceImpl implements TopologyService {
     @Resource
     private IngressRepository ingressRepository;
@@ -35,6 +40,8 @@ public class TopologyServiceImpl implements TopologyService {
     private ServicePortRepository servicePortRepository;
     @Resource
     private NodeRepository nodeRepository;
+    @Resource
+    private ResourceVersionHolder resourceVersionHolder;
 
     @Override
     public TopologyVO getTopology() {
@@ -130,7 +137,7 @@ public class TopologyServiceImpl implements TopologyService {
 
     @Override
     @Transactional
-    public void loadResources() throws ApiException {
+    public void loadResourcesTopology() throws ApiException {
         // load nodes
         V1NodeList nodeList = K8sApi.listNodes();
         List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
@@ -138,6 +145,8 @@ public class TopologyServiceImpl implements TopologyService {
                     .name(n.getMetadata().getName())
                     .uid(n.getMetadata().getUid())
                     .podCIDR(n.getSpec().getPodCIDR())
+                    .status(EventType.ADDED)
+                    .gmtCreate(n.getMetadata().getCreationTimestamp().toLocalDateTime())
                     .build();
             n.getStatus().getAddresses().forEach(addr -> {
                 if ("Hostname".equals(addr.getType())) {
@@ -146,6 +155,7 @@ public class TopologyServiceImpl implements TopologyService {
                     nodePO.setInternalIP(addr.getAddress());
                 }
             });
+            resourceVersionHolder.syncUpdateLatest(n.getMetadata().getResourceVersion());
             return nodePO;
         }).collect(Collectors.toList());
         nodeRepository.saveAllAndFlush(nodePOList);
@@ -165,15 +175,17 @@ public class TopologyServiceImpl implements TopologyService {
                     .externalName(spec.getExternalName())
                     .externalIPs(StringUtils.joinWith(",", spec.getExternalIPs()))
                     .loadBalancerIP(spec.getLoadBalancerIP())
+                    .status(EventType.ADDED)
+                    .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
                     .build();
+            resourceVersionHolder.syncUpdateLatest(service.getMetadata().getResourceVersion());
             serviceRepository.saveAndFlush(svcPO);
 
             for (V1ServicePort sp : spec.getPorts()) {
                 // 获取ingress path rule映射
-                List<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getName() + ":" + sp.getPort());
+                List<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getNamespace() + ":" + service.getMetadata().getName() + ":" + sp.getPort());
                 String id = svcPO.getUid() + ":" + sp.getPort() + ":" + sp.getProtocol();
-                String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
-                String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
+                String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                 ServicePortPO servicePortPO = ServicePortPO.builder()
                         .uid(uid)
                         .service(svcPO)
@@ -183,6 +195,8 @@ public class TopologyServiceImpl implements TopologyService {
                         .port(sp.getPort())
                         .nodePort(sp.getNodePort())
                         .ingressPathRules(pathRulePOList)
+                        .status(EventType.ADDED)
+                        .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
                         .build();
                 // 获取pod port映射列表
                 List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
@@ -205,6 +219,23 @@ public class TopologyServiceImpl implements TopologyService {
         }
     }
 
+    @Override
+    @Transactional
+    public void updateAllResourcesWithDeletedStatus() throws K8sServiceException {
+        try {
+            serviceRepository.updateAllWithDeletedStatus();
+            servicePortRepository.updateAllWithDeletedStatus();
+            nodeRepository.updateAllWithDeletedStatus();
+            ingressRepository.updateAllWithDeletedStatus();
+            pathRuleRepository.updateAllWithDeletedStatus();
+            podRepository.updateAllWithDeletedStatus();
+            podPortRepository.updateAllWithDeletedStatus();
+        } catch (PersistenceException e) {
+            log.error("Error: update all resources' status to 'DELETED' failed", e);
+            throw new K8sServiceException("failed to tag old resources to deleted status", e);
+        }
+    }
+
     @Transactional
     public Map<String, List<PathRulePO>> loadIngressPathMapping() throws ApiException {
         V1IngressList ingressList = K8sApi.listIngresses();
@@ -217,6 +248,8 @@ public class TopologyServiceImpl implements TopologyService {
                     .name(ingress.getMetadata().getName())
                     .namespace(ingress.getMetadata().getNamespace())
                     .className(ingress.getSpec().getIngressClassName())
+                    .status(EventType.ADDED)
+                    .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
                     .build();
             // 获取负载均衡IP地址列表
             List<V1LoadBalancerIngress> lbIngresses = ingress.getStatus().getLoadBalancer().getIngress();
@@ -229,6 +262,7 @@ public class TopologyServiceImpl implements TopologyService {
                 }
             }
             ingressPO.setLoadBalancerHosts(StringUtils.join(ips, ","));
+            resourceVersionHolder.syncUpdateLatest(ingress.getMetadata().getResourceVersion());
             ingressRepository.saveAndFlush(ingressPO);
 
             List<V1IngressRule> rules = ingress.getSpec().getRules();
@@ -237,17 +271,18 @@ public class TopologyServiceImpl implements TopologyService {
                 List<V1HTTPIngressPath> paths = rule.getHttp().getPaths();
                 for (V1HTTPIngressPath path : paths) {
                     String id = ingressPO.getUid() + ":" + rule.getHost() + ":" + path.getPath() + ":" + path.getPathType();
-                    String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
-                    String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
+                    String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                     PathRulePO pathRulePO = PathRulePO.builder()
                             .uid(uid)
                             .host(rule.getHost())
                             .path(path.getPath())
                             .pathType(path.getPathType())
                             .ingress(ingressPO)
+                            .status(EventType.ADDED)
+                            .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
                             .build();
                     pathRuleRepository.saveAndFlush(pathRulePO);
-                    String svcPortKey = path.getBackend().getService().getName() + ":" + path.getBackend().getService().getPort();
+                    String svcPortKey = ingress.getMetadata().getNamespace() + ":" + path.getBackend().getService().getName() + ":" + path.getBackend().getService().getPort();
                     if (!pathsMap.containsKey(svcPortKey)) {
                         pathsMap.put(svcPortKey, new ArrayList<PathRulePO>());
                     }
@@ -261,6 +296,7 @@ public class TopologyServiceImpl implements TopologyService {
     @Transactional
     protected Map<String, List<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
         V1Endpoints endpoints = K8sApi.listEndpoints(namespace, svcName);
+        resourceVersionHolder.syncUpdateLatest(endpoints.getMetadata().getResourceVersion());
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
         if (subsets == null)
             return Collections.emptyMap();
@@ -280,6 +316,8 @@ public class TopologyServiceImpl implements TopologyService {
                             .nodeName(address.getNodeName())
                             .hostname(address.getHostname())
                             .ip(address.getIp())
+                            .status(EventType.ADDED)
+                            .gmtCreate(endpoints.getMetadata().getCreationTimestamp().toLocalDateTime())
                             .build();
                     podRepository.save(podPO);
                 }
@@ -288,8 +326,7 @@ public class TopologyServiceImpl implements TopologyService {
                 if (subset.getPorts().size() != 0) {
                     for (CoreV1EndpointPort port : subset.getPorts()) {
                         String id = endpoints.getMetadata().getUid() + ":" + Optional.ofNullable(address.getTargetRef()).map(t -> t.getUid()).map(Objects::toString).orElse("null") + ":" + port.getPort() + ":" + port.getProtocol();
-                        String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
-                        String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
+                        String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                         PodPortPO podPortPO = PodPortPO.builder()
                                 .uid(uid)
                                 .epUid(endpoints.getMetadata().getUid())
@@ -298,6 +335,8 @@ public class TopologyServiceImpl implements TopologyService {
                                 .port(port.getPort())
                                 .protocol(port.getProtocol())
                                 .appProtocol(port.getAppProtocol())
+                                .status(EventType.ADDED)
+                                .gmtCreate(endpoints.getMetadata().getCreationTimestamp().toLocalDateTime())
                                 .build();
                         if (!podPortMap.containsKey(podPortPO.getPort()) && podPortPO.getPort() != null) {
                             podPortMap.put(podPortPO.getPort().toString(), new ArrayList<PodPortPO>());

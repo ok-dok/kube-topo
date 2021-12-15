@@ -23,4 +23,8 @@ public interface ServicePortRepository extends JpaRepository<ServicePortPO, Stri
     @Modifying
     @Query("update ServicePortPO set status = :status, gmtModified = current_timestamp where service = :serviceUid")
     void updateStatusByServiceUid(String serviceUid, String status);
+
+    @Modifying
+    @Query("update ServicePortPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

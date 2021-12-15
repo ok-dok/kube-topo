@@ -1,6 +1,6 @@
 package com.dclingcloud.kubetopo.watch;
 
-import com.dclingcloud.kubetopo.service.impl.TopologyServiceImpl;
+import com.dclingcloud.kubetopo.util.ResourceVersionHolder;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -24,20 +24,28 @@ import java.util.regex.Pattern;
 @Slf4j
 public abstract class EventWatcher<T extends KubernetesObject> implements EventType, InitializingBean {
     @Resource
-    protected TopologyServiceImpl topologyService;
-    @Resource
     protected ApiClient apiClient;
-    protected String resourceVersion = null;
+    @Resource
+    protected ResourceVersionHolder resourceVersionHolder;
+    @Resource
+    private FullTopologyLoadListener topologyLoadListener;
     protected Watch<T> watch = null;
     protected Class<T> tClazz = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
 
 
     protected void processResponseError(Watch.Response item) throws ApiException {
-        Pattern compile = Pattern.compile("(\\D*)(\\d+)(\\D*)(\\d+)(.*)");
-        Matcher matcher = compile.matcher("too old resource version: 23089614 (23411270)");
-        if (matcher.matches()) {
-            this.resourceVersion = matcher.group(4);
+        if (item.status.getCode() == 410) {
+            boolean reloaded = topologyLoadListener.reload();
+            Pattern compile = Pattern.compile("(\\D*)(\\d+)(\\D*)(\\d+)(.*)");
+            Matcher matcher = compile.matcher(item.status.getMessage());
+            if (matcher.matches()) {
+                String resourceVersion = matcher.group(4);
+                if (reloaded) {
+                    resourceVersionHolder.syncUpdateLatest(resourceVersion);
+                }
+            }
         }
+
         throw new ApiException(item.status.getCode(), item.status.getMessage());
     }
 
@@ -47,7 +55,9 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
         if (watch != null) {
             return;
         }
-
+        if (topologyLoadListener.isLoading() || !topologyLoadListener.hasLoaded()) {
+            return;
+        }
         try {
             watch = createWatch();
             // 下面代码会阻塞持续运行，直到发生异常
@@ -64,13 +74,13 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
                         eventLog.append(", Reason: ")
                                 .append(item.status.getReason())
                                 .append(", the new resourceVersion: ")
-                                .append(this.resourceVersion);
+                                .append(resourceVersionHolder);
                         break;
                     case BOOKMARK:
                         // record the new resourceVersion
-                        this.resourceVersion = item.object.getMetadata().getResourceVersion();
+                        resourceVersionHolder.syncUpdateLatest(item.object.getMetadata().getResourceVersion());
                         eventLog.append(", the new resourceVersion: ")
-                                .append(this.resourceVersion);
+                                .append(resourceVersionHolder);
                         break;
                     default:
                         eventLog.append(", Name: ")
@@ -80,9 +90,9 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
                                     .append(item.object.getMetadata().getNamespace());
                         }
                         processEventObject(item.type, item.object, eventLog);
-                        this.resourceVersion = item.object.getMetadata().getResourceVersion();
+                        resourceVersionHolder.syncUpdateLatest(item.object.getMetadata().getResourceVersion());
                         eventLog.append(", ResourceVersion: ")
-                                .append(this.resourceVersion);
+                                .append(resourceVersionHolder);
                 }
                 log.info(eventLog.toString());
             }
@@ -121,8 +131,6 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
 
     @Override
     public void afterPropertiesSet() throws Exception {
-//        topologyService.loadResources();
-//        this.resourceVersion = "23089614";
     }
 
     @PreDestroy

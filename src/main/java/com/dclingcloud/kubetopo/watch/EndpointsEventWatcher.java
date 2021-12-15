@@ -140,7 +140,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
 
     @Override
     protected Watch<V1Endpoints> createWatch() throws ApiException {
-        Call endpointsCall = K8sApi.createEndpointsCall(this.resourceVersion);
+        Call endpointsCall = K8sApi.createEndpointsCall(resourceVersionHolder.toString());
         Watch<V1Endpoints> watch = Watch.createWatch(apiClient, endpointsCall, new TypeToken<Watch.Response<V1Endpoints>>() {
         }.getType());
         return watch;

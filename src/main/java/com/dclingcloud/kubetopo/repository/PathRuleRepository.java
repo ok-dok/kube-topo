@@ -25,4 +25,8 @@ public interface PathRuleRepository extends JpaRepository<PathRulePO, String> {
     @Modifying
     @Query("update PathRulePO set status = :status where ingress = :ingressUid")
     void updateStatusByIngressUid(String ingressUid, String status);
+
+    @Modifying
+    @Query("update PathRulePO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }

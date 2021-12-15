@@ -80,7 +80,7 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
 
     @Override
     protected Watch<V1Pod> createWatch() throws ApiException {
-        Call call = K8sApi.createPodsCall(this.resourceVersion);
+        Call call = K8sApi.createPodsCall(resourceVersionHolder.toString());
         Watch<V1Pod> watch = Watch.createWatch(apiClient, call, new TypeToken<Watch.Response<V1Pod>>() {
         }.getType());
         return watch;
