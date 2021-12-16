@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,7 @@ public interface ServiceRepository extends JpaRepository<ServicePO, String> {
     @Modifying
     @Query("update ServicePO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
     void updateAllWithDeletedStatus();
+
+    @Modifying
+    void deleteAllByStatusAndGmtModifiedBefore(String status, LocalDateTime dateTime);
 }

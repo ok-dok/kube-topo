@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -24,4 +25,7 @@ public interface PodPortRepository extends JpaRepository<PodPortPO, String> {
     @Modifying
     @Query("update PodPortPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
     void updateAllWithDeletedStatus();
+
+    @Modifying
+    void deleteAllByStatusAndGmtModifiedBefore(String status, LocalDateTime dateTime);
 }

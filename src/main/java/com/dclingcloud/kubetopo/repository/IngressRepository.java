@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -20,4 +21,7 @@ public interface IngressRepository extends JpaRepository<IngressPO, String> {
     @Modifying
     @Query("update IngressPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
     void updateAllWithDeletedStatus();
+
+    @Modifying
+    void deleteAllByStatusAndGmtModifiedBefore(String status, LocalDateTime dateTime);
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +28,7 @@ public interface ServicePortRepository extends JpaRepository<ServicePortPO, Stri
     @Modifying
     @Query("update ServicePortPO set status = 'DELETED', gmtModified = current_timestamp where status <> 'DELETED'")
     void updateAllWithDeletedStatus();
+
+
+    void deleteAllByStatusAndGmtModifiedBefore(String status, LocalDateTime dateTime);
 }
