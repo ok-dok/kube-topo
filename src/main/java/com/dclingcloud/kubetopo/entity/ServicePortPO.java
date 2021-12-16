@@ -1,7 +1,6 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -10,7 +9,7 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
-import java.util.List;
+import java.util.Collection;
 import java.util.Objects;
 
 @NoArgsConstructor
@@ -46,11 +45,11 @@ public class ServicePortPO extends BasePO {
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "backend")
     @NotFound(action = NotFoundAction.IGNORE)
-    private List<PathRulePO> ingressPathRules;
+    private Collection<PathRulePO> ingressPathRules;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "servicePort")
     @NotFound(action = NotFoundAction.IGNORE)
-    private List<PodPortPO> podPorts;
+    private Collection<PodPortPO> podPorts;
 
     @Override
     public boolean equals(Object o) {

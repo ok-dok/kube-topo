@@ -12,7 +12,7 @@ public interface ServicePortService {
 
     void saveAll(Collection<ServicePortPO> servicePorts) throws K8sServiceException;
 
-    Optional<ServicePortPO> findOneByServiceNameAndPort(String serviceName, V1ServiceBackendPort port);
+    Optional<ServicePortPO> findOneByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port);
 
 
     /**

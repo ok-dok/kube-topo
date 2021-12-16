@@ -15,11 +15,11 @@ import java.util.Optional;
 public interface ServicePortRepository extends JpaRepository<ServicePortPO, String> {
     List<ServicePortPO> findAllByService(ServicePO svc);
 
-    @Query("select distinct p from ServicePortPO p join ServicePO s on s.uid = p.service where s.name = :serviceName and p.name = :portName and s.status <> 'DELETED' and p.status <> 'DELETED'")
-    Optional<ServicePortPO> findByServiceNameAndPortName(String serviceName, String portName);
+    @Query("select distinct p from ServicePortPO p join ServicePO s on s.uid = p.service where s.namespace = :namespace and s.name = :serviceName and p.name = :portName and s.status <> 'DELETED' and p.status <> 'DELETED'")
+    Optional<ServicePortPO> findByNamespacedServiceNameAndPortName(String namespace, String serviceName, String portName);
 
-    @Query("select distinct p from ServicePortPO p join ServicePO s on s.uid = p.service where s.name = :serviceName and p.port = :portNumber and (p.protocol = 'TCP' or p.protocol is null ) and s.status <> 'DELETED' and p.status <> 'DELETED'")
-    Optional<ServicePortPO> findByServiceNameAndTCPPortNumber(String serviceName, Integer portNumber);
+    @Query("select distinct p from ServicePortPO p join ServicePO s on s.uid = p.service where s.namespace = :namespace and s.name = :serviceName and p.port = :portNumber and (p.protocol = 'TCP' or p.protocol is null ) and s.status <> 'DELETED' and p.status <> 'DELETED'")
+    Optional<ServicePortPO> findByNamespacedServiceNameAndTCPPortNumber(String namespace, String serviceName, Integer portNumber);
 
     @Modifying
     @Query("update ServicePortPO set status = :status, gmtModified = current_timestamp where service = :serviceUid")

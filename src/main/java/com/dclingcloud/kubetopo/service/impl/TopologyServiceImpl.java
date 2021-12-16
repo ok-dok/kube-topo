@@ -161,10 +161,10 @@ public class TopologyServiceImpl implements TopologyService {
         nodeRepository.saveAllAndFlush(nodePOList);
 
         V1ServiceList serviceList = K8sApi.listAllServices();
-        Map<String, List<PathRulePO>> ingressPathMapping = loadIngressPathMapping();
+        Map<String, Collection<PathRulePO>> ingressPathMapping = loadIngressPathMapping();
         List<V1Service> services = serviceList.getItems();
         for (V1Service service : services) {
-            Map<String, List<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
+            Map<String, Collection<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
             V1ServiceSpec spec = service.getSpec();
             ServicePO svcPO = ServicePO.builder()
                     .uid(service.getMetadata().getUid())
@@ -183,7 +183,7 @@ public class TopologyServiceImpl implements TopologyService {
 
             for (V1ServicePort sp : spec.getPorts()) {
                 // 获取ingress path rule映射
-                List<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getNamespace() + ":" + service.getMetadata().getName() + ":" + sp.getPort());
+                Collection<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getNamespace() + ":" + service.getMetadata().getName() + ":" + sp.getPort().intValue());
                 String id = svcPO.getUid() + ":" + sp.getPort() + ":" + sp.getProtocol();
                 String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                 ServicePortPO servicePortPO = ServicePortPO.builder()
@@ -199,11 +199,11 @@ public class TopologyServiceImpl implements TopologyService {
                         .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
                         .build();
                 // 获取pod port映射列表
-                List<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
+                Collection<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
                 if (sp.getTargetPort().isInteger()) {
                     servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
                 } else if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                    servicePortPO.setTargetPort(podPortPOList.get(0).getPort());
+                    servicePortPO.setTargetPort(podPortPOList.stream().findFirst().get().getPort());
                 }
                 servicePortRepository.saveAndFlush(servicePortPO);
                 // 设置pod port关联到service port
@@ -237,10 +237,10 @@ public class TopologyServiceImpl implements TopologyService {
     }
 
     @Transactional
-    public Map<String, List<PathRulePO>> loadIngressPathMapping() throws ApiException {
+    public Map<String, Collection<PathRulePO>> loadIngressPathMapping() throws ApiException {
         V1IngressList ingressList = K8sApi.listIngresses();
         List<V1Ingress> ingresses = ingressList.getItems();
-        HashMap<String, List<PathRulePO>> pathsMap = new HashMap<>();
+        HashMap<String, Collection<PathRulePO>> pathsMap = new HashMap<>();
         for (int i = 0; i < ingresses.size(); i++) {
             V1Ingress ingress = ingresses.get(i);
             IngressPO ingressPO = IngressPO.builder()
@@ -282,9 +282,9 @@ public class TopologyServiceImpl implements TopologyService {
                             .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
                             .build();
                     pathRuleRepository.saveAndFlush(pathRulePO);
-                    String svcPortKey = ingress.getMetadata().getNamespace() + ":" + path.getBackend().getService().getName() + ":" + path.getBackend().getService().getPort();
+                    String svcPortKey = ingress.getMetadata().getNamespace() + ":" + path.getBackend().getService().getName() + ":" + path.getBackend().getService().getPort().getNumber();
                     if (!pathsMap.containsKey(svcPortKey)) {
-                        pathsMap.put(svcPortKey, new ArrayList<PathRulePO>());
+                        pathsMap.put(svcPortKey, new HashSet<PathRulePO>());
                     }
                     pathsMap.get(svcPortKey).add(pathRulePO);
                 }
@@ -294,13 +294,13 @@ public class TopologyServiceImpl implements TopologyService {
     }
 
     @Transactional
-    protected Map<String, List<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
+    protected Map<String, Collection<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
         V1Endpoints endpoints = K8sApi.listEndpoints(namespace, svcName);
         resourceVersionHolder.syncUpdateLatest(endpoints.getMetadata().getResourceVersion());
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
         if (subsets == null)
             return Collections.emptyMap();
-        Map<String, List<PodPortPO>> podPortMap = new HashMap<>();
+        Map<String, Collection<PodPortPO>> podPortMap = new HashMap<>();
         for (V1EndpointSubset subset : subsets) {
             List<V1EndpointAddress> addresses = subset.getAddresses();
             if (CollectionUtils.isEmpty(addresses) && CollectionUtils.isNotEmpty(subset.getNotReadyAddresses())) {
@@ -342,7 +342,7 @@ public class TopologyServiceImpl implements TopologyService {
                             podPortMap.put(podPortPO.getPort().toString(), new ArrayList<PodPortPO>());
                         }
                         if (!podPortMap.containsKey(podPortPO.getName()) && StringUtils.isNotBlank(podPortPO.getName())) {
-                            podPortMap.put(podPortPO.getName(), new ArrayList<PodPortPO>());
+                            podPortMap.put(podPortPO.getName(), new HashSet<PodPortPO>());
                         }
                         if (podPortPO.getPort() != null) {
                             podPortMap.get(podPortPO.getPort().toString()).add(podPortPO);

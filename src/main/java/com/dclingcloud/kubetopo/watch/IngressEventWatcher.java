@@ -97,7 +97,7 @@ public class IngressEventWatcher extends EventWatcher<V1Ingress> {
                             .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
                             .build();
                     V1IngressServiceBackend targetService = path.getBackend().getService();
-                    Optional<ServicePortPO> svcPort = servicePortService.findOneByServiceNameAndPort(targetService.getName(), targetService.getPort());
+                    Optional<ServicePortPO> svcPort = servicePortService.findOneByNamespacedServiceNameAndPort(ingressPO.getNamespace(), targetService.getName(), targetService.getPort());
                     svcPort.ifPresent(pathRulePO::setBackend);
                     pathRulePOList.add(pathRulePO);
                 }

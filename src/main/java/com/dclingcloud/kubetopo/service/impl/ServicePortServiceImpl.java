@@ -43,12 +43,12 @@ public class ServicePortServiceImpl implements ServicePortService {
     }
 
     @Override
-    public Optional<ServicePortPO> findOneByServiceNameAndPort(String serviceName, V1ServiceBackendPort port) {
+    public Optional<ServicePortPO> findOneByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port) {
         try {
             if (StringUtils.isNotBlank(port.getName())) {
-                return servicePortRepository.findByServiceNameAndPortName(serviceName, port.getName());
+                return servicePortRepository.findByNamespacedServiceNameAndPortName(namespace, serviceName, port.getName());
             } else {
-                return servicePortRepository.findByServiceNameAndTCPPortNumber(serviceName, port.getNumber());
+                return servicePortRepository.findByNamespacedServiceNameAndTCPPortNumber(namespace, serviceName, port.getNumber());
             }
         } catch (Exception e) {
             log.error("Error: query {} failed by service name \"{}\" and port name \"{}\" or number \"{}\".", ServicePortPO.class.getName(), serviceName, port.getName(), port.getNumber(), e);

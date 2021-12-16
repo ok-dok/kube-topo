@@ -1,7 +1,6 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -10,6 +9,7 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -45,9 +45,9 @@ public class PodPortPO extends BasePO {
 //
 //    @EmbeddedId
 //    private PodPortUPK id;
-        /**
-         * endpoint uid, 当podUid发生变化时，epUid不会发生变化
-         */
+    /**
+     * endpoint uid, 当podUid发生变化时，epUid不会发生变化
+     */
     @Column
     private String epUid;
     @Column
@@ -68,4 +68,17 @@ public class PodPortPO extends BasePO {
     @NotFound(action = NotFoundAction.IGNORE)
     @JoinColumn(name = "podUid")
     private PodPO pod;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PodPortPO podPortPO = (PodPortPO) o;
+        return uid.equals(podPortPO.uid) || epUid.equals(podPortPO.epUid) && Objects.equals(port, podPortPO.port) && Objects.equals(protocol, podPortPO.protocol) && pod.equals(podPortPO.pod);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), uid);
+    }
 }
