@@ -74,7 +74,7 @@ public class PodPortPO extends BasePO {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PodPortPO podPortPO = (PodPortPO) o;
-        return uid.equals(podPortPO.uid) || epUid.equals(podPortPO.epUid) && Objects.equals(port, podPortPO.port) && Objects.equals(protocol, podPortPO.protocol) && pod.equals(podPortPO.pod);
+        return uid.equals(podPortPO.uid) && epUid.equals(podPortPO.epUid) && Objects.equals(port, podPortPO.port) && Objects.equals(protocol, podPortPO.protocol) && pod.equals(podPortPO.pod);
     }
 
     @Override

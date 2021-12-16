@@ -10,6 +10,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,4 +32,16 @@ public class NodePO extends BasePO {
     @Column
     private String podCIDR;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        NodePO nodePO = (NodePO) o;
+        return Objects.equals(uid, nodePO.uid) && Objects.equals(name, nodePO.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), uid, name);
+    }
 }

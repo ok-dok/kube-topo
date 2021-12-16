@@ -9,7 +9,9 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,5 +41,19 @@ public class ServicePO extends BasePO {
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "service")
     @NotFound(action = NotFoundAction.IGNORE)
-    private List<ServicePortPO> ports;
+    private Collection<ServicePortPO> ports;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        ServicePO servicePO = (ServicePO) o;
+        return uid.equals(servicePO.uid) && name.equals(servicePO.name) && namespace.equals(servicePO.namespace);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), uid, name, namespace);
+    }
 }

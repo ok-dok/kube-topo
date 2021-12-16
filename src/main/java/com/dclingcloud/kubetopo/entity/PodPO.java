@@ -9,7 +9,8 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
-import java.util.List;
+import java.util.Collection;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,5 +37,18 @@ public class PodPO extends BasePO {
     private String containerId;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
     @NotFound(action = NotFoundAction.IGNORE)
-    private List<PodPortPO> ports;
+    private Collection<PodPortPO> ports;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PodPO podPO = (PodPO) o;
+        return uid.equals(podPO.uid) && name.equals(podPO.name) && namespace.equals(podPO.namespace);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), uid, name, namespace);
+    }
 }

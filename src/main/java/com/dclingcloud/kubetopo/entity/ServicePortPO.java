@@ -55,12 +55,13 @@ public class ServicePortPO extends BasePO {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
         ServicePortPO that = (ServicePortPO) o;
-        return this.uid.equals(that.uid) || port.equals(that.port) && service.equals(that.service);
+        return uid.equals(that.uid) && Objects.equals(protocol, that.protocol) && port.equals(that.port) && targetPort.equals(that.targetPort) && service.equals(that.service);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(port, service);
+        return Objects.hash(super.hashCode(), uid, protocol, port, targetPort, service);
     }
 }

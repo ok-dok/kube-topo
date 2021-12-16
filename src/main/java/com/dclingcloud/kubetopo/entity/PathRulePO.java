@@ -1,7 +1,6 @@
 package com.dclingcloud.kubetopo.entity;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -49,6 +48,6 @@ public class PathRulePO extends BasePO {
 
     @Override
     public int hashCode() {
-        return Objects.hash(ingress, host, path, pathType);
+        return Objects.hash(uid, ingress, host, path, pathType);
     }
 }

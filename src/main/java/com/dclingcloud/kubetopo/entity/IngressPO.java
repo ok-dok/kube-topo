@@ -9,7 +9,9 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,5 +34,18 @@ public class IngressPO extends BasePO {
     private String loadBalancerHosts;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "ingress")
     @NotFound(action = NotFoundAction.IGNORE)
-    private List<PathRulePO> pathRules;
+    private Collection<PathRulePO> pathRules;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        IngressPO ingressPO = (IngressPO) o;
+        return uid.equals(ingressPO.uid) && name.equals(ingressPO.name) && namespace.equals(ingressPO.namespace);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), uid, name, namespace);
+    }
 }
