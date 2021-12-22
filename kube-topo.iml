@@ -35,15 +35,7 @@
     </content>
     <orderEntry type="jdk" jdkName="1.8" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.21" level="project" />
-    <orderEntry type="library" name="Maven: com.github.dozermapper:dozer-core:6.5.2" level="project" />
-    <orderEntry type="library" name="Maven: commons-beanutils:commons-beanutils:1.9.4" level="project" />
-    <orderEntry type="library" name="Maven: commons-collections:commons-collections:3.2.2" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-lang3:3.12.0" level="project" />
-    <orderEntry type="library" name="Maven: commons-io:commons-io:2.5" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.32" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:jcl-over-slf4j:1.7.32" level="project" />
-    <orderEntry type="library" name="Maven: org.objenesis:objenesis:2.6" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: org.mapstruct:mapstruct:1.4.2.Final" level="project" />
     <orderEntry type="library" name="Maven: io.kubernetes:client-java:14.0.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient:0.12.0" level="project" />
     <orderEntry type="library" name="Maven: io.prometheus:simpleclient_tracer_otel:0.12.0" level="project" />
@@ -61,6 +53,10 @@
     <orderEntry type="library" name="Maven: io.kubernetes:client-java-proto:14.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.yaml:snakeyaml:1.29" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.15" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.21" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-lang3:3.12.0" level="project" />
+    <orderEntry type="library" name="Maven: commons-io:commons-io:2.11.0" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.32" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcprov-ext-jdk15on:1.69" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcpkix-jdk15on:1.69" level="project" />
     <orderEntry type="library" name="Maven: org.bouncycastle:bcprov-jdk15on:1.69" level="project" />
@@ -93,7 +89,6 @@
     <orderEntry type="library" name="Maven: org.springframework.data:spring-data-jpa:2.6.0" level="project" />
     <orderEntry type="library" name="Maven: org.springframework.data:spring-data-commons:2.6.0" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-orm:5.3.13" level="project" />
-    <orderEntry type="library" name="Maven: org.springframework:spring-context:5.3.13" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-tx:5.3.13" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-beans:5.3.13" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-aspects:5.3.13" level="project" />
@@ -122,6 +117,8 @@
     <orderEntry type="library" name="Maven: org.springframework:spring-web:5.3.13" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-webmvc:5.3.13" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-expression:5.3.13" level="project" />
+    <orderEntry type="library" name="Maven: org.springframework.boot:spring-boot-starter-websocket:2.6.0" level="project" />
+    <orderEntry type="library" name="Maven: org.springframework:spring-messaging:5.3.13" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: com.h2database:h2:1.4.200" level="project" />
     <orderEntry type="library" name="Maven: org.springframework.boot:spring-boot-configuration-processor:2.6.0" level="project" />
     <orderEntry type="library" name="Maven: org.projectlombok:lombok:1.18.22" level="project" />
@@ -146,6 +143,7 @@
     <orderEntry type="library" scope="TEST" name="Maven: org.junit.platform:junit-platform-engine:1.8.1" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.mockito:mockito-core:4.0.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: net.bytebuddy:byte-buddy-agent:1.11.22" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.objenesis:objenesis:3.2" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.mockito:mockito-junit-jupiter:4.0.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.skyscreamer:jsonassert:1.5.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: com.vaadin.external.google:android-json:0.0.20131108.vaadin1" level="project" />
@@ -153,5 +151,7 @@
     <orderEntry type="library" name="Maven: org.springframework:spring-jcl:5.3.13" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.springframework:spring-test:5.3.13" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.xmlunit:xmlunit-core:2.8.3" level="project" />
+    <orderEntry type="library" name="Maven: org.springframework:spring-websocket:5.1.8.RELEASE" level="project" />
+    <orderEntry type="library" name="Maven: org.springframework:spring-context:5.3.13" level="project" />
   </component>
 </module>
