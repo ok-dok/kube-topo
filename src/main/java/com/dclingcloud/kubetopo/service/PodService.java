@@ -23,4 +23,6 @@ public interface PodService {
     void delete(V1Pod pod) throws K8sServiceException;
 
     void saveAll(List<PodPO> podPOList) throws K8sServiceException;
+
+    void saveOrUpdate(PodPO podPO);
 }

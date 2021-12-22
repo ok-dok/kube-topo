@@ -57,9 +57,9 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
-    public Optional<ServicePO> findByName(String name) {
+    public Optional<ServicePO> findByNamespacedName(String namespace, String name) {
         try {
-            return serviceRepository.findByNameAndStatusNot(name, "DELETED");
+            return serviceRepository.findByNamespaceAndNameAndStatusNot(namespace, name, "DELETED");
         } catch (Exception e) {
             log.error("Error: query {} by name who's status is not 'DELETED' failed. name={}", V1Service.class.getName(), name, e);
             throw new K8sServiceException("Unable to find service", e);

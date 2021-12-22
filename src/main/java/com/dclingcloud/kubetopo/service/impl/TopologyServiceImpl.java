@@ -2,6 +2,8 @@ package com.dclingcloud.kubetopo.service.impl;
 
 import com.dclingcloud.kubetopo.entity.*;
 import com.dclingcloud.kubetopo.repository.*;
+import com.dclingcloud.kubetopo.service.EndpointsService;
+import com.dclingcloud.kubetopo.service.PodService;
 import com.dclingcloud.kubetopo.service.TopologyService;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
@@ -35,6 +37,8 @@ public class TopologyServiceImpl implements TopologyService {
     @Resource
     private PodRepository podRepository;
     @Resource
+    private PodService podService;
+    @Resource
     private PodPortRepository podPortRepository;
     @Resource
     private ServicePortRepository servicePortRepository;
@@ -42,6 +46,8 @@ public class TopologyServiceImpl implements TopologyService {
     private NodeRepository nodeRepository;
     @Resource
     private ResourceVersionHolder resourceVersionHolder;
+    @Resource
+    private EndpointsService endpointsService;
 
     @Override
     public TopologyVO getTopology() {
@@ -113,7 +119,13 @@ public class TopologyServiceImpl implements TopologyService {
                                 return EndpointVO.builder()
                                         .uid(p.getUid())
                                         .name(p.getName())
-                                        .backendUid(Optional.ofNullable(p.getServicePort()).map(ServicePortPO::getUid).orElse(null))
+                                        .backendUids(Optional.ofNullable(p.getBackendEndpointRelations())
+                                                .map(Collection::stream)
+                                                .map(stream -> stream
+                                                        .map(BackendEndpointRelationPO::getServicePort)
+                                                        .map(ServicePortPO::getUid)
+                                                        .collect(Collectors.toSet()))
+                                                .orElse(null))
                                         .podUid(pod.getUid())
                                         .protocol(p.getProtocol())
                                         .port(p.getPort())
@@ -206,11 +218,14 @@ public class TopologyServiceImpl implements TopologyService {
                     servicePortPO.setTargetPort(podPortPOList.stream().findFirst().get().getPort());
                 }
                 servicePortRepository.saveAndFlush(servicePortPO);
+
                 // 设置pod port关联到service port
                 if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
                     podPortRepository.saveAllAndFlush(podPortPOList);
+                    endpointsService.saveRelation(servicePortPO, podPortPOList);
                 }
+
+
                 if (CollectionUtils.isNotEmpty(pathRulePOList)) {
                     pathRulePOList.forEach(p -> p.setBackend(servicePortPO));
                     pathRuleRepository.saveAllAndFlush(pathRulePOList);
@@ -319,7 +334,7 @@ public class TopologyServiceImpl implements TopologyService {
                             .status(EventType.ADDED)
                             .gmtCreate(endpoints.getMetadata().getCreationTimestamp().toLocalDateTime())
                             .build();
-                    podRepository.save(podPO);
+                    podService.saveOrUpdate(podPO);
                 }
 
                 // Headless services with no ports.
@@ -338,6 +353,8 @@ public class TopologyServiceImpl implements TopologyService {
                                 .status(EventType.ADDED)
                                 .gmtCreate(endpoints.getMetadata().getCreationTimestamp().toLocalDateTime())
                                 .build();
+                        //podPortRepository.saveAndFlush(podPortPO);
+
                         if (!podPortMap.containsKey(podPortPO.getPort()) && podPortPO.getPort() != null) {
                             podPortMap.put(podPortPO.getPort().toString(), new ArrayList<PodPortPO>());
                         }

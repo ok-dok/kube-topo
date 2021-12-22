@@ -2,8 +2,11 @@ package com.dclingcloud.kubetopo.watch;
 
 import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
+import com.dclingcloud.kubetopo.entity.ServicePO;
+import com.dclingcloud.kubetopo.service.EndpointsService;
 import com.dclingcloud.kubetopo.service.PodPortService;
 import com.dclingcloud.kubetopo.service.PodService;
+import com.dclingcloud.kubetopo.service.ServiceService;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import com.google.gson.reflect.TypeToken;
@@ -33,6 +36,10 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
     private PodPortService podPortService;
     @Resource
     private PodService podService;
+    @Resource
+    private EndpointsService endpointsService;
+    @Resource
+    private ServiceService serviceService;
 
     @Override
     protected void processEventObject(String type, V1Endpoints object, StringBuilder eventLog) {
@@ -70,11 +77,13 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
 
     private void processSaveEvent(V1Endpoints endpoints, StringBuilder eventLog, String status) {
         List<V1EndpointSubset> subsets = endpoints.getSubsets();
-        if (subsets == null)
+        if (subsets == null) {
             return;
+        }
+        Optional<ServicePO> svcOpt = serviceService.findByNamespacedName(endpoints.getMetadata().getNamespace(), endpoints.getMetadata().getName());
         List<PodPortPO> podPortPOList = new ArrayList<>();
         Map<String, PodPO> needUpdatePodMap = new HashMap<>();
-        eventLog.append("Endpoints: ");
+
         for (V1EndpointSubset subset : subsets) {
             List<V1EndpointAddress> addresses = subset.getAddresses();
             if (CollectionUtils.isEmpty(addresses) && CollectionUtils.isNotEmpty(subset.getNotReadyAddresses())) {
@@ -135,7 +144,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
         String endpointsStr = podPortPOList.stream().map(podPort -> Optional.ofNullable(podPort.getPod())
                         .map(PodPO::getIp).orElse("") + ":" + podPort.getPort())
                 .collect(Collectors.joining());
-        eventLog.append(endpointsStr);
+        eventLog.append(", Endpoints: ").append(endpointsStr);
     }
 
     @Override

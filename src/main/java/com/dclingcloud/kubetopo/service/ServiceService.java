@@ -16,5 +16,5 @@ public interface ServiceService {
      */
     void delete(V1Service service) throws K8sServiceException;
 
-    Optional<ServicePO> findByName(String name);
+    Optional<ServicePO> findByNamespacedName(String namespace, String name);
 }

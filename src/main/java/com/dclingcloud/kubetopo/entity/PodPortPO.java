@@ -9,6 +9,8 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import javax.persistence.*;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
 
 @NoArgsConstructor
@@ -59,10 +61,9 @@ public class PodPortPO extends BasePO {
     @Column
     private String appProtocol;
 
-    @ManyToOne(cascade = CascadeType.DETACH)
-    @JoinColumn(name = "service_port_uid")
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "podPort")
     @NotFound(action = NotFoundAction.IGNORE)
-    private ServicePortPO servicePort;
+    private Collection<BackendEndpointRelationPO> backendEndpointRelations;
 
     @ManyToOne(cascade = CascadeType.DETACH)
     @NotFound(action = NotFoundAction.IGNORE)

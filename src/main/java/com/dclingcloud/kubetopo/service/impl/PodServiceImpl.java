@@ -1,11 +1,11 @@
 package com.dclingcloud.kubetopo.service.impl;
 
+import com.dclingcloud.kubetopo.beanmapper.PodPOMapper;
 import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.repository.PodRepository;
 import com.dclingcloud.kubetopo.service.NodeService;
 import com.dclingcloud.kubetopo.service.PodService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
-import com.github.dozermapper.core.Mapper;
 import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -25,7 +25,20 @@ public class PodServiceImpl implements PodService {
     @Resource
     private NodeService nodeService;
     @Resource
-    private Mapper beanMapper;
+    private PodPOMapper podPOMapper;
+
+    @Transactional
+    @Override
+    public void saveOrUpdate(PodPO podPO) {
+        Optional<PodPO> persistPodOpt = podRepository.findById(podPO.getUid());
+        if (persistPodOpt.isPresent()) {
+            PodPO persistPod = persistPodOpt.get();
+            podPOMapper.updatePropertiesIgnoresNull(persistPod, podPO);
+            save(persistPod);
+        } else {
+            save(podPO);
+        }
+    }
 
     @Transactional
     @Override
@@ -82,4 +95,6 @@ public class PodServiceImpl implements PodService {
             podPOList.forEach(this::save);
         }
     }
+
+
 }

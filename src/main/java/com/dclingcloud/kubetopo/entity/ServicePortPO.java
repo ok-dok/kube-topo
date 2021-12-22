@@ -48,8 +48,7 @@ public class ServicePortPO extends BasePO {
     private Collection<PathRulePO> ingressPathRules;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "servicePort")
-    @NotFound(action = NotFoundAction.IGNORE)
-    private Collection<PodPortPO> podPorts;
+    private Collection<BackendEndpointRelationPO> backendEndpointRelations;
 
     @Override
     public boolean equals(Object o) {

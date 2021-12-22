@@ -4,10 +4,7 @@ import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.entity.ServicePO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
-import com.dclingcloud.kubetopo.service.PodPortService;
-import com.dclingcloud.kubetopo.service.PodService;
-import com.dclingcloud.kubetopo.service.ServicePortService;
-import com.dclingcloud.kubetopo.service.ServiceService;
+import com.dclingcloud.kubetopo.service.*;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import com.google.gson.reflect.TypeToken;
@@ -39,6 +36,8 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
     private PodService podService;
     @Resource
     private PodPortService podPortService;
+    @Resource
+    private EndpointsService endpointsService;
 
     @Override
     protected void processEventObject(String type, V1Service object, StringBuilder eventLog) {
@@ -105,17 +104,15 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
                         .orElse(endpointsMapping.get(sp.getTargetPort().toString()));
                 if (sp.getTargetPort().isInteger()) {
                     servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
-                }
-                if (servicePortPO.getTargetPort() == null) {
-                    if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                        servicePortPO.setTargetPort(podPortPOList.get(0).getPort());
-                    }
+                } else if (CollectionUtils.isNotEmpty(podPortPOList)) {
+                    servicePortPO.setTargetPort(podPortPOList.stream().findFirst().get().getPort());
                 }
                 servicePortService.saveOrUpdate(servicePortPO);
+
                 // 设置pod port关联到service port
                 if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                    podPortPOList.forEach(p -> p.setServicePort(servicePortPO));
                     podPortService.saveAll(podPortPOList);
+                    endpointsService.saveRelation(servicePortPO, podPortPOList);
                 }
             }
         } catch (K8sServiceException e) {

@@ -23,4 +23,6 @@ public interface ServiceRepository extends JpaRepository<ServicePO, String> {
 
     @Modifying
     void deleteAllByStatusAndGmtModifiedBefore(String status, LocalDateTime dateTime);
+
+    Optional<ServicePO> findByNamespaceAndNameAndStatusNot(String name, String deleted, String statusNot);
 }
