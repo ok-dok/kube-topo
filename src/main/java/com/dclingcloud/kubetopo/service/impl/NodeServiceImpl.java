@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.persistence.PersistenceException;
 import javax.transaction.Transactional;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -63,12 +64,12 @@ public class NodeServiceImpl implements NodeService {
     }
 
     @Override
-    public String getNameByHostIP(String hostIP) {
+    public Optional<NodePO> findByHostIP(String hostIP) {
         try {
-            return nodeRepository.getNameByInternalIP(hostIP);
+            return nodeRepository.getByInternalIP(hostIP);
         } catch (Exception e) {
-            log.error("Error: get {}'s name by hostIP '{}' failed.", NodePO.class.getName(), hostIP, e);
-            throw new K8sServiceException("Unable to get node's name", e);
+            log.error("Error: get {} by hostIP '{}' failed.", NodePO.class.getName(), hostIP, e);
+            throw new K8sServiceException("Unable to get node", e);
         }
     }
 

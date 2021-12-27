@@ -2,7 +2,9 @@ package com.dclingcloud.kubetopo.service;
 
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.models.V1ServiceBackendPort;
+import org.springframework.lang.NonNull;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -12,7 +14,7 @@ public interface ServicePortService {
 
     void saveAll(Collection<ServicePortPO> servicePorts) throws K8sServiceException;
 
-    Optional<ServicePortPO> findOneByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port);
+    Optional<ServicePortPO> findByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port);
 
 
     /**
@@ -21,4 +23,8 @@ public interface ServicePortService {
      * @param serviceUid
      */
     void deleteAllByServiceUid(String serviceUid);
+
+    Optional<IntOrString> getTargetPort(@NonNull String servicePortUid);
+
+    Optional<ServicePortPO> findByServiceUidAndTargetPortAndProtocol(String serviceUid, IntOrString targetPort, String protocol);
 }

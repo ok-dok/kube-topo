@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Component
+//@Component
 @Async
 @Slf4j
 public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
@@ -68,7 +68,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
     private void processDeleteEvent(V1Endpoints endpoints, StringBuilder eventLog) {
         String epUid = endpoints.getMetadata().getUid();
         try {
-            podPortService.deleteAllByEndpointsUid(epUid);
+//            podPortService.deleteAllByEndpointsUid(epUid);
         } catch (K8sServiceException e) {
             // TODO 保存异常处理，重试？
             throw e;
@@ -97,7 +97,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
                                 .uid(address.getTargetRef().getUid())
                                 .name(address.getTargetRef().getName())
                                 .namespace(address.getTargetRef().getNamespace())
-                                .nodeName(address.getNodeName())
+//                                .nodeName(address.getNodeName())
                                 .hostname(address.getHostname())
                                 .ip(address.getIp())
                                 .build();
@@ -114,7 +114,7 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
                         //String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
                         PodPortPO podPortPO = PodPortPO.builder()
                                 .uid(uid)
-                                .epUid(endpoints.getMetadata().getUid())
+//                                .epUid(endpoints.getMetadata().getUid())
                                 .pod(podPO)
                                 .status(status)
                                 .name(port.getName())
@@ -131,7 +131,8 @@ public class EndpointsEventWatcher extends EventWatcher<V1Endpoints> {
         List<PodPO> podPOList = needUpdatePodMap.values().stream().map(pod ->
                 podService.findByUid(pod.getUid())
                         .map(podPO -> podPO.setHostname(pod.getHostname())
-                                .setNodeName(pod.getNodeName()))
+//                                .setNodeName(pod.getNodeName())
+                        )
                         .orElse(pod)
         ).collect(Collectors.toList());
         try {

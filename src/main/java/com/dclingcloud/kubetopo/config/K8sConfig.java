@@ -4,6 +4,7 @@ import com.dclingcloud.kubetopo.util.ResourceVersionHolder;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.apis.DiscoveryV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.Data;
@@ -43,5 +44,10 @@ public class K8sConfig {
     @Bean
     public NetworkingV1Api createNetworkingV1Api(ApiClient apiClient) {
         return new NetworkingV1Api(apiClient);
+    }
+
+    @Bean
+    public DiscoveryV1Api createDiscoveryV1Api(ApiClient apiClient) {
+        return new DiscoveryV1Api(apiClient);
     }
 }

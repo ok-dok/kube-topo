@@ -21,7 +21,6 @@ import okhttp3.Call;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Base64Utils;
-import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
@@ -79,30 +78,7 @@ public class IngressEventWatcher extends EventWatcher<V1Ingress> {
     private void processSaveEvent(V1Ingress ingress, StringBuilder eventLog, String status) {
         try {
             IngressPO ingressPO = ingressService.saveOrUpdate(ingress, status);
-            List<V1IngressRule> rules = ingress.getSpec().getRules();
-            List<PathRulePO> pathRulePOList = new ArrayList<>(rules.size());
-            for (V1IngressRule rule : rules) {
-                // 七层路由
-                List<V1HTTPIngressPath> paths = rule.getHttp().getPaths();
-                for (V1HTTPIngressPath path : paths) {
-                    String id = ingressPO.getUid() + ":" + rule.getHost() + ":" + path.getPath() + ":" + path.getPathType();
-                    String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
-                    PathRulePO pathRulePO = PathRulePO.builder()
-                            .uid(uid)
-                            .host(rule.getHost())
-                            .path(path.getPath())
-                            .pathType(path.getPathType())
-                            .ingress(ingressPO)
-                            .status(status)
-                            .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
-                            .build();
-                    V1IngressServiceBackend targetService = path.getBackend().getService();
-                    Optional<ServicePortPO> svcPort = servicePortService.findOneByNamespacedServiceNameAndPort(ingressPO.getNamespace(), targetService.getName(), targetService.getPort());
-                    svcPort.ifPresent(pathRulePO::setBackend);
-                    pathRulePOList.add(pathRulePO);
-                }
-            }
-            pathRuleService.saveAll(pathRulePOList);
+            processIngressPathRules(ingress, ingressPO);
         } catch (K8sServiceException e) {
             // TODO 保存异常处理，重试？
             throw e;
@@ -117,27 +93,31 @@ public class IngressEventWatcher extends EventWatcher<V1Ingress> {
         return watch;
     }
 
-    private void processIngressPathRules(V1Ingress ingress) {
+    private void processIngressPathRules(V1Ingress ingress, IngressPO ingressPO) {
         List<V1IngressRule> rules = ingress.getSpec().getRules();
-        ArrayList<PathRulePO> pathRules = new ArrayList<>();
+        List<PathRulePO> pathRulePOList = new ArrayList<>(rules.size());
         for (V1IngressRule rule : rules) {
             // 七层路由
             List<V1HTTPIngressPath> paths = rule.getHttp().getPaths();
             for (V1HTTPIngressPath path : paths) {
                 String id = ingress.getMetadata().getUid() + ":" + rule.getHost() + ":" + path.getPath() + ":" + path.getPathType();
-                String hash = DigestUtils.md5DigestAsHex(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
-                String uid = new StringBuilder(hash).insert(20, '-').insert(16, '-').insert(12, '-').insert(8, '-').toString();
+                String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
                 PathRulePO pathRulePO = PathRulePO.builder()
                         .uid(uid)
                         .host(rule.getHost())
                         .path(path.getPath())
                         .pathType(path.getPathType())
-                        .ingress(IngressPO.builder().uid(ingress.getMetadata().getUid()).build())
+                        .ingress(ingressPO)
+                        .status(ingressPO.getStatus())
+                        .gmtCreate(ingress.getMetadata().getCreationTimestamp().toLocalDateTime())
                         .build();
-                pathRules.add(pathRulePO);
+                V1IngressServiceBackend targetService = path.getBackend().getService();
+                Optional<ServicePortPO> svcPort = servicePortService.findByNamespacedServiceNameAndPort(ingressPO.getNamespace(), targetService.getName(), targetService.getPort());
+                svcPort.ifPresent(pathRulePO::setBackend);
+                pathRulePOList.add(pathRulePO);
             }
         }
-        pathRuleService.saveAll(pathRules);
+        pathRuleService.saveAll(pathRulePOList);
     }
 
 }

@@ -7,6 +7,7 @@ import com.dclingcloud.kubetopo.util.K8sServiceException;
 import org.springframework.lang.NonNull;
 
 import java.util.Collection;
+import java.util.Optional;
 
 public interface EndpointsService {
     void saveRelation(@NonNull ServicePortPO servicePort, @NonNull Collection<PodPortPO> podPorts) throws K8sServiceException;
@@ -14,4 +15,6 @@ public interface EndpointsService {
     void saveRelation(@NonNull PodPortPO podPort, @NonNull Collection<ServicePortPO> servicePorts) throws K8sServiceException;
 
     void saveAll(Collection<BackendEndpointRelationPO> collection) throws K8sServiceException;
+
+    Optional<BackendEndpointRelationPO> findByServicePortUidAndPodPortUid(ServicePortPO servicePort, PodPortPO podPort);
 }

@@ -27,14 +27,19 @@ public class PodPO extends BasePO {
     private String name;
     @Column
     private String namespace;
-    @Column
-    private String nodeName;
+
+    @ManyToOne(cascade = CascadeType.DETACH)
+    @JoinColumn(name = "nodeUid")
+    private NodePO node;
+
     @Column
     private String hostname;
     @Column
+    private String subdomain;
+    @Column
     private String ip;
     @Column
-    private String containerId;
+    private String containerIds;
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
     @NotFound(action = NotFoundAction.IGNORE)
     private Collection<PodPortPO> ports;

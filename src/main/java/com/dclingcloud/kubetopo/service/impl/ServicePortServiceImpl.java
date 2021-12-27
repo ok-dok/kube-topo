@@ -1,10 +1,12 @@
 package com.dclingcloud.kubetopo.service.impl;
 
 import com.dclingcloud.kubetopo.entity.PodPortPO;
+import com.dclingcloud.kubetopo.entity.ServicePO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
 import com.dclingcloud.kubetopo.repository.ServicePortRepository;
 import com.dclingcloud.kubetopo.service.ServicePortService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.models.V1ServiceBackendPort;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -43,7 +45,7 @@ public class ServicePortServiceImpl implements ServicePortService {
     }
 
     @Override
-    public Optional<ServicePortPO> findOneByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port) {
+    public Optional<ServicePortPO> findByNamespacedServiceNameAndPort(String namespace, String serviceName, V1ServiceBackendPort port) {
         try {
             if (StringUtils.isNotBlank(port.getName())) {
                 return servicePortRepository.findByNamespacedServiceNameAndPortName(namespace, serviceName, port.getName());
@@ -64,6 +66,26 @@ public class ServicePortServiceImpl implements ServicePortService {
         } catch (Exception e) {
             log.error("Error: update {}'s status to 'DELETED' failed. serviceUid={}", PodPortPO.class.getName(), serviceUid, e);
             throw new K8sServiceException("Unable to delete " + ServicePortPO.class.getSimpleName() + " by serviceUid", e);
+        }
+    }
+
+    @Override
+    public Optional<IntOrString> getTargetPort(String servicePortUid) {
+        try {
+            return servicePortRepository.getTargetPortByUid(servicePortUid);
+        } catch (Exception e) {
+            log.error("Error: can not find the targetPort of {} by servicePortUid. servicePortUid={}", PodPortPO.class.getName(), servicePortUid, e);
+            throw new K8sServiceException("Unable to find " + ServicePortPO.class.getSimpleName() + "'s targetPort by servicePortUid", e);
+        }
+    }
+
+    @Override
+    public Optional<ServicePortPO> findByServiceUidAndTargetPortAndProtocol(String serviceUid, IntOrString targetPort, String protocol) {
+        try {
+            return servicePortRepository.findByServiceAndTargetPortAndProtocol(ServicePO.builder().uid(serviceUid).build(), targetPort, protocol);
+        } catch (Exception e) {
+            log.error("Error: can not find {} by serviceUid and targetPort and protocol. serviceUid={}, targetPort={}, protocol={}", PodPortPO.class.getName(), serviceUid, targetPort, protocol, e);
+            throw new K8sServiceException("Unable to find " + ServicePortPO.class.getSimpleName() + "'s targetPort by serviceUid and targetPort and protocol", e);
         }
     }
 }

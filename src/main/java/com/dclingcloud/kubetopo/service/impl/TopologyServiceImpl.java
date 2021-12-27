@@ -1,19 +1,21 @@
 package com.dclingcloud.kubetopo.service.impl;
 
+import com.dclingcloud.kubetopo.constants.K8sResources;
 import com.dclingcloud.kubetopo.entity.*;
 import com.dclingcloud.kubetopo.repository.*;
-import com.dclingcloud.kubetopo.service.EndpointsService;
-import com.dclingcloud.kubetopo.service.PodService;
-import com.dclingcloud.kubetopo.service.TopologyService;
+import com.dclingcloud.kubetopo.service.*;
+import com.dclingcloud.kubetopo.util.CustomUidGenerateUtil;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import com.dclingcloud.kubetopo.util.ResourceVersionHolder;
 import com.dclingcloud.kubetopo.vo.*;
 import com.dclingcloud.kubetopo.watch.EventType;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Base64Utils;
@@ -22,8 +24,12 @@ import javax.annotation.Resource;
 import javax.persistence.PersistenceException;
 import javax.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -48,6 +54,10 @@ public class TopologyServiceImpl implements TopologyService {
     private ResourceVersionHolder resourceVersionHolder;
     @Resource
     private EndpointsService endpointsService;
+    @Resource
+    private ServicePortService servicePortService;
+    @Resource
+    private PodPortService podPortService;
 
     @Override
     public TopologyVO getTopology() {
@@ -57,14 +67,17 @@ public class TopologyServiceImpl implements TopologyService {
         List<PodPO> podList = podRepository.findAll();
         List<ServiceVO> svcs = svcList.stream().map(svc -> {
             List<BackendVO> backends = Optional.ofNullable(servicePortRepository.findAllByService(svc)).map(l -> l.stream().map(p -> {
-                List<String> endpointsUids = podPortRepository.findAllUidsByServicePort(p);
+                List<String> endpointsUids = Optional.ofNullable(p.getBackendEndpointRelations()).map(Collection::stream)
+                        .map(stream -> stream.map(b -> b.getPodPort().getUid())
+                                .collect(Collectors.toList()))
+                        .orElse(Collections.emptyList());
                 List<String> servicePortUids = pathRuleRepository.findAllUidsByServicePort(p);
                 return BackendVO.builder()
                         .uid(p.getUid())
                         .serviceUid(svc.getUid())
                         .name(p.getName())
                         .port(p.getPort())
-                        .targetPort(p.getTargetPort())
+                        .targetPort(p.getTargetPort().toString())
                         .nodePort(p.getNodePort())
                         .protocol(p.getProtocol())
                         .appProtocol(p.getAppProtocol())
@@ -114,7 +127,7 @@ public class TopologyServiceImpl implements TopologyService {
                     .namespace(pod.getNamespace())
                     .hostname(pod.getHostname())
                     .ip(pod.getIp())
-                    .nodeName(pod.getNodeName())
+                    .nodeName(Optional.ofNullable(pod.getNode()).map(NodePO::getName).orElse(""))
                     .endpoints(Optional.ofNullable(podPortRepository.findAllByPod(pod)).map(l -> l.stream().map(p -> {
                                 return EndpointVO.builder()
                                         .uid(p.getUid())
@@ -149,34 +162,35 @@ public class TopologyServiceImpl implements TopologyService {
 
     @Override
     @Transactional
-    public void loadResourcesTopology() throws ApiException {
-        // load nodes
-        V1NodeList nodeList = K8sApi.listNodes();
-        List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
-            NodePO nodePO = NodePO.builder()
-                    .name(n.getMetadata().getName())
-                    .uid(n.getMetadata().getUid())
-                    .podCIDR(n.getSpec().getPodCIDR())
-                    .status(EventType.ADDED)
-                    .gmtCreate(n.getMetadata().getCreationTimestamp().toLocalDateTime())
-                    .build();
-            n.getStatus().getAddresses().forEach(addr -> {
-                if ("Hostname".equals(addr.getType())) {
-                    nodePO.setHostname(addr.getAddress());
-                } else if ("InternalIP".equals(addr.getType())) {
-                    nodePO.setInternalIP(addr.getAddress());
-                }
-            });
-            resourceVersionHolder.syncUpdateLatest(n.getMetadata().getResourceVersion());
-            return nodePO;
-        }).collect(Collectors.toList());
-        nodeRepository.saveAllAndFlush(nodePOList);
+    public void updateAllResourcesWithDeletedStatus() throws K8sServiceException {
+        try {
+            serviceRepository.updateAllWithDeletedStatus();
+            servicePortRepository.updateAllWithDeletedStatus();
+            nodeRepository.updateAllWithDeletedStatus();
+            ingressRepository.updateAllWithDeletedStatus();
+            pathRuleRepository.updateAllWithDeletedStatus();
+            podRepository.updateAllWithDeletedStatus();
+            podPortRepository.updateAllWithDeletedStatus();
+        } catch (PersistenceException e) {
+            log.error("Error: update all resources' status to 'DELETED' failed", e);
+            throw new K8sServiceException("failed to tag old resources to deleted status", e);
+        }
+    }
 
-        V1ServiceList serviceList = K8sApi.listAllServices();
+    @Override
+    public void loadResourcesTopology() throws ApiException {
+        Map<String, NodePO> nodeMapping = loadNodeMapping();
+        loadPods(nodeMapping);
         Map<String, Collection<PathRulePO>> ingressPathMapping = loadIngressPathMapping();
+        loadServices(ingressPathMapping);
+        loadEndpointSlices();
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    public void loadServices(Map<String, Collection<PathRulePO>> ingressPathMapping) throws ApiException {
+        V1ServiceList serviceList = K8sApi.listAllServices();
         List<V1Service> services = serviceList.getItems();
         for (V1Service service : services) {
-            Map<String, Collection<PodPortPO>> podPortMapping = loadEndpointsMapping(service.getMetadata().getName(), service.getMetadata().getNamespace());
             V1ServiceSpec spec = service.getSpec();
             ServicePO svcPO = ServicePO.builder()
                     .uid(service.getMetadata().getUid())
@@ -196,8 +210,7 @@ public class TopologyServiceImpl implements TopologyService {
             for (V1ServicePort sp : spec.getPorts()) {
                 // 获取ingress path rule映射
                 Collection<PathRulePO> pathRulePOList = ingressPathMapping.get(service.getMetadata().getNamespace() + ":" + service.getMetadata().getName() + ":" + sp.getPort().intValue());
-                String id = svcPO.getUid() + ":" + sp.getPort() + ":" + sp.getProtocol();
-                String uid = new String(Base64Utils.encode(id.getBytes(StandardCharsets.UTF_8)));
+                String uid = CustomUidGenerateUtil.getServicePortUid(svcPO.getUid(), sp.getPort(), sp.getProtocol());
                 ServicePortPO servicePortPO = ServicePortPO.builder()
                         .uid(uid)
                         .service(svcPO)
@@ -206,25 +219,12 @@ public class TopologyServiceImpl implements TopologyService {
                         .appProtocol(sp.getAppProtocol())
                         .port(sp.getPort())
                         .nodePort(sp.getNodePort())
+                        .targetPort(sp.getTargetPort())
                         .ingressPathRules(pathRulePOList)
                         .status(EventType.ADDED)
                         .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
                         .build();
-                // 获取pod port映射列表
-                Collection<PodPortPO> podPortPOList = podPortMapping.get(sp.getTargetPort().toString());
-                if (sp.getTargetPort().isInteger()) {
-                    servicePortPO.setTargetPort(sp.getTargetPort().getIntValue());
-                } else if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                    servicePortPO.setTargetPort(podPortPOList.stream().findFirst().get().getPort());
-                }
                 servicePortRepository.saveAndFlush(servicePortPO);
-
-                // 设置pod port关联到service port
-                if (CollectionUtils.isNotEmpty(podPortPOList)) {
-                    podPortRepository.saveAllAndFlush(podPortPOList);
-                    endpointsService.saveRelation(servicePortPO, podPortPOList);
-                }
-
 
                 if (CollectionUtils.isNotEmpty(pathRulePOList)) {
                     pathRulePOList.forEach(p -> p.setBackend(servicePortPO));
@@ -234,24 +234,7 @@ public class TopologyServiceImpl implements TopologyService {
         }
     }
 
-    @Override
-    @Transactional
-    public void updateAllResourcesWithDeletedStatus() throws K8sServiceException {
-        try {
-            serviceRepository.updateAllWithDeletedStatus();
-            servicePortRepository.updateAllWithDeletedStatus();
-            nodeRepository.updateAllWithDeletedStatus();
-            ingressRepository.updateAllWithDeletedStatus();
-            pathRuleRepository.updateAllWithDeletedStatus();
-            podRepository.updateAllWithDeletedStatus();
-            podPortRepository.updateAllWithDeletedStatus();
-        } catch (PersistenceException e) {
-            log.error("Error: update all resources' status to 'DELETED' failed", e);
-            throw new K8sServiceException("failed to tag old resources to deleted status", e);
-        }
-    }
-
-    @Transactional
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
     public Map<String, Collection<PathRulePO>> loadIngressPathMapping() throws ApiException {
         V1IngressList ingressList = K8sApi.listIngresses();
         List<V1Ingress> ingresses = ingressList.getItems();
@@ -308,7 +291,8 @@ public class TopologyServiceImpl implements TopologyService {
         return pathsMap;
     }
 
-    @Transactional
+
+   /* @Transactional
     protected Map<String, Collection<PodPortPO>> loadEndpointsMapping(String svcName, String namespace) throws ApiException {
         V1Endpoints endpoints = K8sApi.listEndpoints(namespace, svcName);
         resourceVersionHolder.syncUpdateLatest(endpoints.getMetadata().getResourceVersion());
@@ -372,5 +356,215 @@ public class TopologyServiceImpl implements TopologyService {
             }
         }
         return podPortMap;
+    }*/
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    protected void loadEndpointSlices() throws ApiException {
+        V1EndpointSliceList endpointSliceList = K8sApi.listEndpointSlices();
+        List<V1EndpointSlice> sliceList = endpointSliceList.getItems();
+        if (CollectionUtils.isEmpty(sliceList)) {
+            return;
+        }
+        Set<BackendEndpointRelationPO> backendEndpointRelationSet = new HashSet<>();
+        for (V1EndpointSlice endpointSlice : sliceList) {
+            V1ObjectMeta metadata = endpointSlice.getMetadata();
+            LocalDateTime gmtCreate = metadata.getCreationTimestamp().toLocalDateTime();
+            LocalDateTime gmtModified = Optional.ofNullable(metadata.getAnnotations())
+                    .map(map -> map.get("endpoints.kubernetes.io/last-change-trigger-time"))
+                    .map(timestamp -> LocalDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                    .orElse(null);
+            String namespace = metadata.getNamespace();
+            Optional<List<V1OwnerReference>> ownerReferencesOpt = Optional.ofNullable(metadata.getOwnerReferences());
+            // 通常来说，ownerReferences只有一个，但是其类型是列表类型，因此极端情况下或许会出现多个的情况？
+            // TODO 需要验证多个ownerReference的情况
+            // 需要注意：有一些endpoint没有对应的service，比如集群服务kubernetes，它只有endpoint
+            String serviceUid = ownerReferencesOpt.map(list -> list.stream()
+                            .filter(owner -> K8sResources.Service.toString().equalsIgnoreCase(owner.getKind())))
+                    .flatMap(Stream::findAny)
+                    .map(V1OwnerReference::getUid).orElse(null);
+            if (serviceUid == null) {
+                Optional<String> svcNameOpt = Optional.ofNullable(metadata.getLabels())
+                        .map(map -> map.get("kubernetes.io/service-name"));
+                if (svcNameOpt.isPresent()) {
+                    V1Service service = K8sApi.getNamespacedService(metadata.getNamespace(), svcNameOpt.get());
+                    serviceUid = service.getMetadata().getUid();
+                }
+            }
+            if (CollectionUtils.isNotEmpty(endpointSlice.getPorts())) {
+                // 取出所有的endpoints状态（存在pod的情况）
+                Map<String, V1Endpoint> podStates = endpointSlice.getEndpoints().stream()
+                        .filter(ep -> ep.getTargetRef() != null)
+                        .map(ep -> {
+                            return new AbstractMap.SimpleEntry<String, V1Endpoint>(ep.getTargetRef().getUid(), ep);
+                        }).collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+
+                for (DiscoveryV1EndpointPort port : endpointSlice.getPorts()) {
+                    IntOrString targetPort = new IntOrString(port.getPort());
+                    // 使用AtomicReference进行包装的目的是使流处理能够进行引用，而且需要更改其值
+                    AtomicReference<Optional<ServicePortPO>> servicePortOptRef = new AtomicReference(servicePortService.findByServiceUidAndTargetPortAndProtocol(serviceUid, targetPort, port.getProtocol()));
+                    // endpoint存在targetRef即意味着存在后端pod提供endpoint服务
+                    //此时需要 ServicePort 与 PodPort做笛卡尔积
+                    String finalServiceUid = serviceUid;
+                    podStates.forEach((podUid, ep) -> {
+                        Optional<PodPortPO> podPortOpt = podPortService.find(podUid, targetPort, port.getProtocol());
+                        final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
+                                BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
+                        // 能找到后端podPort，非意外情况，必存在，因为已经有对应的pod提供服务，如果出现找不到的情况，必须要排查找不到PodPort的原因，是否保存异常？
+                        if (podPortOpt.isPresent()) {
+                            // 通过Integer类型的targetPort找不到servicePort时，通过名称查找一下
+                            servicePortOptRef.updateAndGet(prev -> {
+                                // 如果能够找到就不需要再查找了
+                                if (!prev.isPresent()) {
+                                    return servicePortService.findByServiceUidAndTargetPortAndProtocol(finalServiceUid, new IntOrString(podPortOpt.get().getName()), port.getProtocol());
+                                } else {
+                                    return prev;
+                                }
+                            });
+                            Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                            if (backendEndpointRelation.isPresent()) {
+                                // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
+                                // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
+                                if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
+                                    BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
+                                        r.setGmtModified(gmtModified);
+                                        r.setState(state);
+                                        r.setStatus(EventType.ADDED);
+                                        r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
+                                        r.setPort(port.getPort());
+                                        return r;
+                                    }).get();
+                                    backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                }
+                            } else {
+                                BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
+                                        .state(state)
+                                        .servicePort(servicePortOptRef.get().orElse(null))
+                                        .podPort(podPortOpt.get())
+                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                        .port(port.getPort())
+                                        .gmtCreate(gmtCreate)
+                                        .gmtModified(gmtModified)
+                                        .status(EventType.ADDED)
+                                        .build();
+                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                            }
+                        }
+                    });
+                    // 不存在pod提供endpoint服务的情况
+                    endpointSlice.getEndpoints().stream()
+                            .filter(ep -> ep.getTargetRef() == null)
+                            .forEach(ep -> {
+                                final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
+                                        BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
+                                BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
+                                        .state(state)
+                                        .servicePort(servicePortOptRef.get().orElse(null))
+                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                        .port(port.getPort())
+                                        .gmtCreate(gmtCreate)
+                                        .gmtModified(gmtModified)
+                                        .status(EventType.ADDED)
+                                        .build();
+                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                            });
+                }
+            }
+        }
+        endpointsService.saveAll(backendEndpointRelationSet);
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    protected void loadPods(Map<String, NodePO> nodeMap) throws ApiException {
+        V1PodList v1PodList = K8sApi.listAllPods();
+        List<V1Pod> items = v1PodList.getItems();
+        if (CollectionUtils.isEmpty(items)) {
+            return;
+        }
+        List<PodPO> podList = new ArrayList<>();
+        ArrayList<PodPortPO> podPortPOList = new ArrayList<>();
+        for (V1Pod pod : items) {
+            String status = pod.getStatus().getPhase();
+            StringBuilder containerIds = new StringBuilder();
+            List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
+            if (CollectionUtils.isNotEmpty(containerStatuses)) {
+                status = "Ready";
+                for (V1ContainerStatus containerStatus : containerStatuses) {
+                    if (!containerStatus.getReady()) {
+                        status = "NotReady";
+                    }
+                    if (containerStatus.getState().getRunning() != null) {
+                        containerIds.append(containerStatus.getContainerID()).append(",");
+                    }
+                }
+            }
+            int lastCommaIndex = containerIds.lastIndexOf(",");
+            if (lastCommaIndex > 0) {
+                containerIds.deleteCharAt(lastCommaIndex);
+            }
+            PodPO podPO = PodPO.builder()
+                    .uid(pod.getMetadata().getUid())
+                    .gmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime())
+                    .name(pod.getMetadata().getName())
+                    .namespace(pod.getMetadata().getNamespace())
+                    .status(status)
+                    .ip(pod.getStatus().getHostIP())
+                    .hostname(pod.getSpec().getHostname())
+                    .subdomain(pod.getSpec().getSubdomain())
+                    .containerIds(containerIds.toString())
+                    .node(nodeMap.get(pod.getStatus().getHostIP()))
+                    .build();
+            podList.add(podPO);
+            List<V1Container> containers = pod.getSpec().getContainers();
+            if (CollectionUtils.isNotEmpty(containers)) {
+                List<PodPortPO> podPorts = containers.stream()
+                        .map(c -> c.getPorts())
+                        .filter(Objects::nonNull)
+                        .flatMap(List::stream)
+                        .distinct()
+                        .map(cp -> {
+                            String podPortUid = CustomUidGenerateUtil.getPodPortUid(podPO.getUid(), cp.getContainerPort(), cp.getProtocol());
+                            return PodPortPO.builder()
+                                    .uid(podPortUid)
+                                    .gmtCreate(podPO.getGmtCreate())
+                                    .status(EventType.ADDED)
+                                    .name(cp.getName())
+                                    .port(cp.getContainerPort())
+                                    .protocol(cp.getProtocol())
+                                    .pod(podPO)
+                                    .build();
+                        })
+                        .distinct()
+                        .collect(Collectors.toList());
+                podPortPOList.addAll(podPorts);
+            }
+        }
+        podRepository.saveAllAndFlush(podList);
+        podPortRepository.saveAllAndFlush(podPortPOList);
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    protected Map<String, NodePO> loadNodeMapping() throws ApiException {
+        // load nodes
+        V1NodeList nodeList = K8sApi.listNodes();
+        List<NodePO> nodePOList = nodeList.getItems().stream().map(n -> {
+            NodePO nodePO = NodePO.builder()
+                    .name(n.getMetadata().getName())
+                    .uid(n.getMetadata().getUid())
+                    .podCIDR(n.getSpec().getPodCIDR())
+                    .status(EventType.ADDED)
+                    .gmtCreate(n.getMetadata().getCreationTimestamp().toLocalDateTime())
+                    .build();
+            n.getStatus().getAddresses().forEach(addr -> {
+                if ("Hostname".equals(addr.getType())) {
+                    nodePO.setHostname(addr.getAddress());
+                } else if ("InternalIP".equals(addr.getType())) {
+                    nodePO.setInternalIP(addr.getAddress());
+                }
+            });
+            resourceVersionHolder.syncUpdateLatest(n.getMetadata().getResourceVersion());
+            return nodePO;
+        }).collect(Collectors.toList());
+        nodePOList = nodeRepository.saveAllAndFlush(nodePOList);
+        return nodePOList.stream().collect(Collectors.toMap(NodePO::getInternalIP, n -> n));
     }
 }

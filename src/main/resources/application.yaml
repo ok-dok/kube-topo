@@ -5,6 +5,8 @@ k8s:
 #  token: 92b863fe8615861251e5faf8881006c6
 #  url: https://172.16.100.10:6443
 #  token: b4ce7e4bf21075c0cc8e56752088503c
+#  url: https://10.168.1.200:6443
+#  token: f86af79b892f7797105064676935eee6
 
 server:
   port: 8080

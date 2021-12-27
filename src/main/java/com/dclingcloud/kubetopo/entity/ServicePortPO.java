@@ -1,5 +1,7 @@
 package com.dclingcloud.kubetopo.entity;
 
+import com.dclingcloud.kubetopo.util.IntOrStringConverter;
+import io.kubernetes.client.custom.IntOrString;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,7 +38,8 @@ public class ServicePortPO extends BasePO {
     @Column
     private Integer nodePort;
     @Column
-    private Integer targetPort;
+    @Convert(converter = IntOrStringConverter.class)
+    private IntOrString targetPort;
 
     @ManyToOne(cascade = CascadeType.DETACH)
     @NotFound(action = NotFoundAction.IGNORE)

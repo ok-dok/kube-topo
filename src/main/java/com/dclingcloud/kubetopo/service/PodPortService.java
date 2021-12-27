@@ -2,8 +2,10 @@ package com.dclingcloud.kubetopo.service;
 
 import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
+import io.kubernetes.client.custom.IntOrString;
 
 import java.util.Collection;
+import java.util.Optional;
 
 public interface PodPortService {
     void save(PodPortPO podPortPO) throws K8sServiceException;
@@ -13,8 +15,10 @@ public interface PodPortService {
     /**
      * it's not a real delete action
      *
-     * @param epUid
+     * @param podUid
      * @throws K8sServiceException
      */
-    void deleteAllByEndpointsUid(String epUid) throws K8sServiceException;
+    void deleteAllByPodUid(String podUid) throws K8sServiceException;
+
+    Optional<PodPortPO> find(String podUid, IntOrString targetPort, String protocol);
 }

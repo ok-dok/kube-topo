@@ -17,7 +17,7 @@ public class BackendVO implements Serializable {
     private String appProtocol;
     private Integer port;
     private Integer nodePort;
-    private Integer targetPort;
+    private String targetPort;
     private String serviceUid;
     private List<String> ingressPathRuleUids;
     private List<String> endpointUids;

@@ -2,6 +2,7 @@ package com.dclingcloud.kubetopo.util;
 
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.apis.DiscoveryV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.openapi.models.*;
 import okhttp3.Call;
@@ -13,6 +14,7 @@ import javax.annotation.Resource;
 public class K8sApi {
     private static CoreV1Api coreV1Api;
     private static NetworkingV1Api networkingV1Api;
+    private static DiscoveryV1Api discoveryV1Api;
 
     public static V1ServiceList listAllServices() throws ApiException {
         return listAllServices(false);
@@ -90,6 +92,18 @@ public class K8sApi {
         return coreV1Api.listEndpointsForAllNamespacesCall(true, null, null, null, null, null, resourceVersion, null, null, true, null);
     }
 
+    public static Call createEndpointSliceCall(String resourceVersion) throws ApiException {
+        return discoveryV1Api.listEndpointSliceForAllNamespacesCall(true, null, null, null, null, null, resourceVersion, null, null, true, null);
+    }
+
+    public static V1EndpointSliceList listEndpointSlices() throws ApiException {
+        return discoveryV1Api.listEndpointSliceForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
+    }
+
+    public static V1Service getNamespacedService(String namespace, String svcName) throws ApiException {
+        return coreV1Api.readNamespacedService(svcName, namespace, null);
+    }
+
     @Resource
     public void setCoreV1Api(CoreV1Api coreV1Api) {
         K8sApi.coreV1Api = coreV1Api;
@@ -98,5 +112,10 @@ public class K8sApi {
     @Resource
     public void setNetworkingV1beta1Api(NetworkingV1Api networkingV1Api) {
         K8sApi.networkingV1Api = networkingV1Api;
+    }
+
+    @Resource
+    public void setDiscoveryV1Api(DiscoveryV1Api discoveryV1Api) {
+        K8sApi.discoveryV1Api = discoveryV1Api;
     }
 }

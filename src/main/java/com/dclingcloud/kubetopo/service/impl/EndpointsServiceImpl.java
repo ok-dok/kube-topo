@@ -15,6 +15,7 @@ import javax.annotation.Resource;
 import javax.transaction.Transactional;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -76,6 +77,17 @@ public class EndpointsServiceImpl implements EndpointsService {
         } catch (Exception e) {
             log.error("Error: save all entities for type {} failed.", BackendEndpointRelationPO.class.getName(), e);
             throw new K8sServiceException("Unable to save collection of " + BackendEndpointRelationPO.class.getSimpleName(), e);
+        }
+    }
+
+    @Override
+    public Optional<BackendEndpointRelationPO> findByServicePortUidAndPodPortUid(ServicePortPO servicePort, PodPortPO podPort) {
+        try {
+            return backendEndpointRelationRepository.findByServicePortAndPodPort(ServicePortPO.builder().uid(servicePort.getUid()).build(),
+                    PodPortPO.builder().uid(podPort.getUid()).build());
+        } catch (Exception e) {
+            log.error("Error: failed to find {} by servicePortUid and podPortUid.", BackendEndpointRelationPO.class.getName(), servicePort, podPort, e);
+            throw new K8sServiceException("Unable to find " + BackendEndpointRelationPO.class.getSimpleName(), e);
         }
     }
 }

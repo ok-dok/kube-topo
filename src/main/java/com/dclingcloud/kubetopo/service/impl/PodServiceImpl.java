@@ -1,6 +1,7 @@
 package com.dclingcloud.kubetopo.service.impl;
 
 import com.dclingcloud.kubetopo.beanmapper.PodPOMapper;
+import com.dclingcloud.kubetopo.entity.NodePO;
 import com.dclingcloud.kubetopo.entity.PodPO;
 import com.dclingcloud.kubetopo.repository.PodRepository;
 import com.dclingcloud.kubetopo.service.NodeService;
@@ -9,7 +10,6 @@ import com.dclingcloud.kubetopo.util.K8sServiceException;
 import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -47,12 +47,12 @@ public class PodServiceImpl implements PodService {
         podPO.setName(pod.getMetadata().getName())
                 .setNamespace(pod.getMetadata().getNamespace())
                 .setIp(pod.getStatus().getPodIP())
-                .setContainerId(Optional.ofNullable(pod.getStatus().getContainerStatuses()).map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null))
+                .setContainerIds(Optional.ofNullable(pod.getStatus().getContainerStatuses()).map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null))
                 .setStatus(status)
                 .setGmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime());
-        if (StringUtils.isBlank(podPO.getNodeName())) {
-            String nodeName = nodeService.getNameByHostIP(pod.getStatus().getHostIP());
-            podPO.setNodeName(nodeName);
+        if (podPO.getNode() == null) {
+            Optional<NodePO> nodeOpt = nodeService.findByHostIP(pod.getStatus().getHostIP());
+            podPO.setNode(nodeOpt.orElse(null));
         }
         save(podPO);
     }

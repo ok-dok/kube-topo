@@ -5,11 +5,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.Collection;
 import java.util.Objects;
 
 @NoArgsConstructor
@@ -31,6 +31,10 @@ public class NodePO extends BasePO {
     private String internalIP;
     @Column
     private String podCIDR;
+
+    @OneToMany(cascade = CascadeType.DETACH, mappedBy = "node")
+    @NotFound(action = NotFoundAction.IGNORE)
+    private Collection<PodPO> pods;
 
     @Override
     public boolean equals(Object o) {

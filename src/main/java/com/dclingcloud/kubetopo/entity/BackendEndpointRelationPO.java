@@ -15,20 +15,14 @@ import java.util.Objects;
 @Accessors(chain = true)
 @SuperBuilder
 @Entity
-@Table(name = "backend_endpoint_relation", schema = "k8s")
+@Table(name = "backend_endpoint_relation", schema = "k8s"/*, uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"service_port_uid", "pod_port_uid"}),
+}*/)
 public class BackendEndpointRelationPO extends BasePO {
+
     @Id
-    @Column(name = "id", nullable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    protected Long id;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
 
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "service_port_uid")
@@ -37,6 +31,17 @@ public class BackendEndpointRelationPO extends BasePO {
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "pod_port_uid")
     private PodPortPO podPort;
+    /**
+     * Ready or Terminating
+     */
+    @Column
+    private String state;
+
+    @Column
+    private String addresses;
+
+    @Column
+    private Integer port;
 
     @Override
     public boolean equals(Object o) {
@@ -44,7 +49,7 @@ public class BackendEndpointRelationPO extends BasePO {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         BackendEndpointRelationPO that = (BackendEndpointRelationPO) o;
-        return id.equals(that.id) || servicePort.equals(that.servicePort) && podPort.equals(that.podPort);
+        return servicePort.equals(that.servicePort) && podPort.equals(that.podPort);
     }
 
     @Override

@@ -1,6 +1,9 @@
 package com.dclingcloud.kubetopo.service;
 
+import com.dclingcloud.kubetopo.entity.NodePO;
 import io.kubernetes.client.openapi.models.V1Node;
+
+import java.util.Optional;
 
 public interface NodeService {
     void saveOrUpdate(V1Node node, String status);
@@ -12,5 +15,5 @@ public interface NodeService {
      */
     void delete(V1Node node);
 
-    String getNameByHostIP(String hostIP);
+    Optional<NodePO> findByHostIP(String hostIP);
 }

@@ -125,7 +125,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
         }
     }
 
-    protected abstract void processEventObject(String type, T object, StringBuilder eventLog);
+    protected abstract void processEventObject(String type, T object, StringBuilder eventLog) throws ApiException;
 
     protected abstract Watch<T> createWatch() throws ApiException;
 

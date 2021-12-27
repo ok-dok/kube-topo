@@ -25,33 +25,6 @@ public class PodPortPO extends BasePO {
     @Id
     @Column(name = "uid", nullable = false)
     private String uid;
-    //    @Id
-//    @Column(name = "uid", nullable = false, length = 36)
-//    @GenericGenerator(name = "uuid-gen", strategy = "uuid2")
-//    @GeneratedValue(generator = "uuid-gen")
-//    private String uid;
-//    @Data
-//    @NoArgsConstructor
-//    @AllArgsConstructor
-//    @EqualsAndHashCode
-//    @Embeddable
-//    public static class PodPortUPK implements Serializable {
-//        /**
-//         * endpoint uid, 当podUid发生变化时，epUid不会发生变化
-//         */
-//        @Column
-//        private String epUid;
-//        @Column
-//        private Integer port;
-//    }
-//
-//    @EmbeddedId
-//    private PodPortUPK id;
-    /**
-     * endpoint uid, 当podUid发生变化时，epUid不会发生变化
-     */
-    @Column
-    private String epUid;
     @Column
     private String name;
     @Column
@@ -75,7 +48,7 @@ public class PodPortPO extends BasePO {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PodPortPO podPortPO = (PodPortPO) o;
-        return uid.equals(podPortPO.uid) && epUid.equals(podPortPO.epUid) && Objects.equals(port, podPortPO.port) && Objects.equals(protocol, podPortPO.protocol) && pod.equals(podPortPO.pod);
+        return uid.equals(podPortPO.uid) || Objects.equals(port, podPortPO.port) && Objects.equals(protocol, podPortPO.protocol) && pod.equals(podPortPO.pod);
     }
 
     @Override
