@@ -7,6 +7,7 @@ import com.dclingcloud.kubetopo.repository.PodRepository;
 import com.dclingcloud.kubetopo.service.NodeService;
 import com.dclingcloud.kubetopo.service.PodService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
+import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -44,9 +45,26 @@ public class PodServiceImpl implements PodService {
     @Override
     public void saveOrUpdate(V1Pod pod, String status) throws K8sServiceException {
         PodPO podPO = podRepository.findById(pod.getMetadata().getUid()).orElse(PodPO.builder().uid(pod.getMetadata().getUid()).build());
+        String state = null;
+        if ("Running".equalsIgnoreCase(status)) {
+            List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
+            if (CollectionUtils.isNotEmpty(containerStatuses)) {
+                long readyCount = containerStatuses.stream().filter(cs -> cs.getReady()).count();
+                if (readyCount == containerStatuses.size()) {
+                    state = "Ready";
+                } else {
+                    state = "NotReady";
+                }
+            } else {
+                state = "NotReady";
+            }
+        } else {
+            state = "NotReady";
+        }
         podPO.setName(pod.getMetadata().getName())
                 .setNamespace(pod.getMetadata().getNamespace())
                 .setIp(pod.getStatus().getPodIP())
+                .setState(state)
                 .setContainerIds(Optional.ofNullable(pod.getStatus().getContainerStatuses()).map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null))
                 .setStatus(status)
                 .setGmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime());

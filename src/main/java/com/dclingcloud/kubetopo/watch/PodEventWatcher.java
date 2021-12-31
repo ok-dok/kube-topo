@@ -32,21 +32,24 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
     protected void processEventObject(String type, V1Pod object, StringBuilder eventLog) {
         V1Pod pod = (V1Pod) object;
         String status = pod.getStatus().getPhase();
+        String state = null;
         if ("Running".equalsIgnoreCase(status)) {
             List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
             if (CollectionUtils.isNotEmpty(containerStatuses)) {
                 long readyCount = containerStatuses.stream().filter(cs -> cs.getReady()).count();
                 if (readyCount == containerStatuses.size()) {
-                    status = "Ready";
+                    state = "Ready";
                 } else {
-                    status = "NotReady";
+                    state = "NotReady";
                 }
             } else {
-                status = "NotReady";
+                state = "NotReady";
             }
+        } else {
+            state = "NotReady";
         }
-        eventLog.append(", Status: ")
-                .append(status)
+        eventLog.append(", State: ")
+                .append(state)
                 .append(", ContainerID: ")
                 .append(Optional.ofNullable(pod.getStatus().getContainerStatuses())
                         .map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null));

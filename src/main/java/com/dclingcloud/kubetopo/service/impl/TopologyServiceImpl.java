@@ -485,12 +485,13 @@ public class TopologyServiceImpl implements TopologyService {
         for (V1Pod pod : items) {
             String status = pod.getStatus().getPhase();
             StringBuilder containerIds = new StringBuilder();
+            String state = null;
             List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
             if (CollectionUtils.isNotEmpty(containerStatuses)) {
-                status = "Ready";
+                state = "Ready";
                 for (V1ContainerStatus containerStatus : containerStatuses) {
                     if (!containerStatus.getReady()) {
-                        status = "NotReady";
+                        state = "NotReady";
                     }
                     if (containerStatus.getState().getRunning() != null) {
                         containerIds.append(containerStatus.getContainerID()).append(",");
@@ -506,7 +507,8 @@ public class TopologyServiceImpl implements TopologyService {
                     .gmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime())
                     .name(pod.getMetadata().getName())
                     .namespace(pod.getMetadata().getNamespace())
-                    .status(status)
+                    .status(EventType.ADDED)
+                    .state(state)
                     .ip(pod.getStatus().getHostIP())
                     .hostname(pod.getSpec().getHostname())
                     .subdomain(pod.getSpec().getSubdomain())

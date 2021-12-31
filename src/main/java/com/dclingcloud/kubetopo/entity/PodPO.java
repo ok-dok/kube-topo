@@ -3,6 +3,7 @@ package com.dclingcloud.kubetopo.entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.NotFound;
@@ -12,6 +13,7 @@ import javax.persistence.*;
 import java.util.Collection;
 import java.util.Objects;
 
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
@@ -31,7 +33,8 @@ public class PodPO extends BasePO {
     @ManyToOne(cascade = CascadeType.DETACH)
     @JoinColumn(name = "nodeUid")
     private NodePO node;
-
+    @Column
+    private String state;
     @Column
     private String hostname;
     @Column
@@ -40,9 +43,10 @@ public class PodPO extends BasePO {
     private String ip;
     @Column
     private String containerIds;
+    @ToString.Exclude
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
     @NotFound(action = NotFoundAction.IGNORE)
-    private Collection<PodPortPO> ports;
+    private Collection<PodPortPO> ports = new java.util.ArrayList<>();
 
     @Override
     public boolean equals(Object o) {
