@@ -34,7 +34,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
     @Resource
     private PodPortService podPortService;
     @Resource
-    private EndpointsService endpointsService;
+    private BackendEndpointRelationService backendEndpointRelationService;
 
     @Override
     protected void processEventObject(String type, V1Service object, StringBuilder eventLog) {

@@ -4,7 +4,7 @@ import com.dclingcloud.kubetopo.entity.BackendEndpointRelationPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
 import com.dclingcloud.kubetopo.repository.BackendEndpointRelationRepository;
-import com.dclingcloud.kubetopo.service.EndpointsService;
+import com.dclingcloud.kubetopo.service.BackendEndpointRelationService;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import com.dclingcloud.kubetopo.watch.EventType;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 @Transactional(rollbackOn = K8sServiceException.class)
-public class EndpointsServiceImpl implements EndpointsService {
+public class BackendEndpointRelationServiceImpl implements BackendEndpointRelationService {
     @Resource
     private BackendEndpointRelationRepository backendEndpointRelationRepository;
 

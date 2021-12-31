@@ -53,7 +53,7 @@ public class TopologyServiceImpl implements TopologyService {
     @Resource
     private ResourceVersionHolder resourceVersionHolder;
     @Resource
-    private EndpointsService endpointsService;
+    private BackendEndpointRelationService backendEndpointRelationService;
     @Resource
     private ServicePortService servicePortService;
     @Resource
@@ -418,7 +418,7 @@ public class TopologyServiceImpl implements TopologyService {
                                     return prev;
                                 }
                             });
-                            Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                            Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
                             final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
                                     BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                             if (backendEndpointRelation.isPresent()) {
@@ -454,7 +454,7 @@ public class TopologyServiceImpl implements TopologyService {
                     endpointSlice.getEndpoints().stream()
                             .filter(ep -> ep.getTargetRef() == null)
                             .forEach(ep -> {
-                                Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
+                                Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
                                 final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
                                         BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                                 if (backendEndpointRelation.isPresent()) {
@@ -487,7 +487,7 @@ public class TopologyServiceImpl implements TopologyService {
                 }
             }
         }
-        endpointsService.saveAll(backendEndpointRelationSet);
+        backendEndpointRelationService.saveAll(backendEndpointRelationSet);
     }
 
     @Transactional(Transactional.TxType.REQUIRES_NEW)

@@ -4,7 +4,7 @@ import com.dclingcloud.kubetopo.constants.K8sResources;
 import com.dclingcloud.kubetopo.entity.BackendEndpointRelationPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
 import com.dclingcloud.kubetopo.entity.ServicePortPO;
-import com.dclingcloud.kubetopo.service.EndpointsService;
+import com.dclingcloud.kubetopo.service.BackendEndpointRelationService;
 import com.dclingcloud.kubetopo.service.PodPortService;
 import com.dclingcloud.kubetopo.service.ServicePortService;
 import com.dclingcloud.kubetopo.util.K8sApi;
@@ -36,7 +36,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
     @Resource
     private ServicePortService servicePortService;
     @Resource
-    private EndpointsService endpointsService;
+    private BackendEndpointRelationService backendEndpointRelationService;
     @Resource
     private PodPortService podPortService;
 
@@ -120,7 +120,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                                 return prev;
                             }
                         });
-                        Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                        Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
                         final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
                                 BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                         if (backendEndpointRelation.isPresent()) {
@@ -156,7 +156,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                 endpointSlice.getEndpoints().stream()
                         .filter(ep -> ep.getTargetRef() == null)
                         .forEach(ep -> {
-                            Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
+                            Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
                             final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
                                     BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                             if (backendEndpointRelation.isPresent()) {
@@ -187,7 +187,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                             }
                         });
             }
-            endpointsService.saveAll(backendEndpointRelationSet);
+            backendEndpointRelationService.saveAll(backendEndpointRelationSet);
         }
     }
 
