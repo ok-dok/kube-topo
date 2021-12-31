@@ -56,7 +56,30 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
     }
 
     private void processDeleteEvent(V1EndpointSlice endpointSlice, StringBuilder eventLog) throws ApiException {
-        processSaveEvent(endpointSlice, DELETED);
+        V1ObjectMeta metadata = endpointSlice.getMetadata();
+        LocalDateTime gmtModified = Optional.ofNullable(metadata.getAnnotations())
+                .map(map -> map.get("endpoints.kubernetes.io/last-change-trigger-time"))
+                .map(timestamp -> LocalDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                .orElse(null);
+        Optional<List<V1OwnerReference>> ownerReferencesOpt = Optional.ofNullable(metadata.getOwnerReferences());
+        // 通常来说，ownerReferences只有一个，但是其类型是列表类型，因此极端情况下或许会出现多个的情况？
+        // TODO 需要验证多个ownerReference的情况
+        // 需要注意：有一些endpoint没有对应的service，比如集群服务kubernetes，它只有endpoint
+        String serviceUid = ownerReferencesOpt.map(list -> list.stream()
+                        .filter(owner -> K8sResources.Service.toString().equalsIgnoreCase(owner.getKind())))
+                .flatMap(Stream::findAny)
+                .map(V1OwnerReference::getUid).orElse(null);
+        if (serviceUid == null) {
+            Optional<String> svcNameOpt = Optional.ofNullable(metadata.getLabels())
+                    .map(map -> map.get("kubernetes.io/service-name"));
+            if (svcNameOpt.isPresent()) {
+                V1Service service = K8sApi.getNamespacedService(metadata.getNamespace(), svcNameOpt.get());
+                serviceUid = service.getMetadata().getUid();
+            }
+        }
+        if(serviceUid != null){
+            backendEndpointRelationService.deleteByServiceUidBeforeModifiedDateTime(serviceUid, gmtModified);
+        }
     }
 
     private void processAddedEvent(V1EndpointSlice endpointSlice, StringBuilder eventLog) throws ApiException {
@@ -130,7 +153,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                                 BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
                                     r.setGmtModified(gmtModified);
                                     r.setState(state);
-                                    r.setStatus(EventType.ADDED);
+                                    r.setStatus(status);
                                     r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
                                     r.setPort(port.getPort());
                                     return r;
@@ -146,7 +169,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                                     .port(port.getPort())
                                     .gmtCreate(gmtCreate)
                                     .gmtModified(gmtModified)
-                                    .status(EventType.ADDED)
+                                    .status(status)
                                     .build();
                             backendEndpointRelationSet.add(backendEndpointRelationPO);
                         }
