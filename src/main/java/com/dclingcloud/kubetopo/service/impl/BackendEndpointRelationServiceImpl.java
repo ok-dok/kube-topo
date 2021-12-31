@@ -26,50 +26,6 @@ public class BackendEndpointRelationServiceImpl implements BackendEndpointRelati
     private BackendEndpointRelationRepository backendEndpointRelationRepository;
 
     @Override
-    public void saveRelation(@NonNull final ServicePortPO servicePort, @NonNull Collection<PodPortPO> podPorts) throws K8sServiceException {
-        if (servicePort == null) {
-            throw new K8sServiceException("Error: save " + BackendEndpointRelationPO.class.getSimpleName() + " failed, " + ServicePortPO.class.getSimpleName() + " can not be null");
-        }
-        if (podPorts == null) {
-            throw new K8sServiceException("Error: save " + BackendEndpointRelationPO.class.getSimpleName() + " failed, " + PodPortPO.class.getSimpleName() + " collection can not be null");
-        }
-        if (podPorts.size() == 0) {
-            return;
-        }
-        List<BackendEndpointRelationPO> list = podPorts.stream().distinct().map(podPort ->
-                BackendEndpointRelationPO.builder()
-                        .podPort(podPort)
-                        .servicePort(servicePort)
-                        .status(EventType.ADDED)
-                        .gmtCreate(servicePort.getGmtCreate())
-                        .build()
-        ).collect(Collectors.toList());
-        saveAll(list);
-    }
-
-    @Override
-    public void saveRelation(@NonNull PodPortPO podPort, @NonNull Collection<ServicePortPO> servicePorts) throws K8sServiceException {
-        if (podPort == null) {
-            throw new K8sServiceException("Error: save " + BackendEndpointRelationPO.class.getSimpleName() + " failed, " + PodPortPO.class.getSimpleName() + " can not be null");
-        }
-        if (servicePorts == null) {
-            throw new K8sServiceException("Error: save " + BackendEndpointRelationPO.class.getSimpleName() + " failed, " + ServicePortPO.class.getSimpleName() + " collection can not be null");
-        }
-        if (servicePorts.size() == 0) {
-            return;
-        }
-        List<BackendEndpointRelationPO> list = servicePorts.stream().distinct().map(servicePort ->
-                BackendEndpointRelationPO.builder()
-                        .podPort(podPort)
-                        .servicePort(servicePort)
-                        .status(EventType.ADDED)
-                        .gmtCreate(podPort.getGmtCreate())
-                        .build()
-        ).collect(Collectors.toList());
-        saveAll(list);
-    }
-
-    @Override
     @Transactional(rollbackOn = K8sServiceException.class)
     public void saveAll(Collection<BackendEndpointRelationPO> collection) throws K8sServiceException {
         try {

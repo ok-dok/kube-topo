@@ -10,10 +10,6 @@ import java.util.Collection;
 import java.util.Optional;
 
 public interface BackendEndpointRelationService {
-    void saveRelation(@NonNull ServicePortPO servicePort, @NonNull Collection<PodPortPO> podPorts) throws K8sServiceException;
-
-    void saveRelation(@NonNull PodPortPO podPort, @NonNull Collection<ServicePortPO> servicePorts) throws K8sServiceException;
-
     void saveAll(Collection<BackendEndpointRelationPO> collection) throws K8sServiceException;
 
     Optional<BackendEndpointRelationPO> findByServicePortUidAndPodPortUid(ServicePortPO servicePort, PodPortPO podPort);
