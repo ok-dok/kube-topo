@@ -1,11 +1,16 @@
 package com.dclingcloud.kubetopo.watch;
 
+import com.dclingcloud.kubetopo.entity.PodPO;
+import com.dclingcloud.kubetopo.entity.PodPortPO;
+import com.dclingcloud.kubetopo.service.NodeService;
 import com.dclingcloud.kubetopo.service.PodPortService;
 import com.dclingcloud.kubetopo.service.PodService;
+import com.dclingcloud.kubetopo.util.CustomUidGenerateUtil;
 import com.dclingcloud.kubetopo.util.K8sApi;
 import com.dclingcloud.kubetopo.util.K8sServiceException;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.util.Watch;
@@ -17,7 +22,9 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 @Async
@@ -27,6 +34,8 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
     private PodService podService;
     @Resource
     private PodPortService podPortService;
+    @Resource
+    private NodeService nodeService;
 
     @Override
     protected void processEventObject(String type, V1Pod object, StringBuilder eventLog) {
@@ -55,29 +64,68 @@ public class PodEventWatcher extends EventWatcher<V1Pod> {
                         .map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null));
         switch (type) {
             case ADDED:
-                try {
-                    podService.saveOrUpdate(pod, ADDED);
-                } catch (K8sServiceException e) {
-                    // TODO 保存异常处理，重试？
-                    throw e;
-                }
+                processAddedEvent(pod, eventLog);
                 break;
             case MODIFIED:
-                try {
-                    podService.saveOrUpdate(pod, MODIFIED);
-                } catch (K8sServiceException e) {
-                    // TODO 保存异常处理，重试？
-                    throw e;
-                }
+                processModifiedEvent(pod, eventLog);
                 break;
             case DELETED:
-                try {
-                    podService.delete(pod);
-                } catch (K8sServiceException e) {
-                    // TODO 保存异常处理，重试？
-                    throw e;
-                }
+                processDeleteEvent(pod, eventLog);
                 break;
+        }
+    }
+    private void processAddedEvent(V1Pod pod, StringBuilder eventLog){
+        try {
+            processSaveEvent(pod, EventType.ADDED);
+        } catch (K8sServiceException e) {
+            // TODO 保存异常处理，重试？
+            throw e;
+        }
+    }
+
+    private void processModifiedEvent(V1Pod pod, StringBuilder eventLog){
+        try {
+            processSaveEvent(pod, EventType.MODIFIED);
+        } catch (K8sServiceException e) {
+            // TODO 保存异常处理，重试？
+            throw e;
+        }
+    }
+
+    private void processDeleteEvent(V1Pod pod, StringBuilder eventLog){
+        try {
+            podPortService.deleteAllByPodUid(pod.getMetadata().getUid());
+            podService.delete(pod);
+        } catch (K8sServiceException e) {
+            // TODO 保存异常处理，重试？
+            throw e;
+        }
+    }
+
+    private void processSaveEvent(V1Pod pod, String status) {
+        podService.saveOrUpdate(pod, status);
+        List<V1Container> containers = pod.getSpec().getContainers();
+        if (CollectionUtils.isNotEmpty(containers)) {
+            List<PodPortPO> podPorts = containers.stream()
+                    .map(c -> c.getPorts())
+                    .filter(Objects::nonNull)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .map(cp -> {
+                        String podPortUid = CustomUidGenerateUtil.getPodPortUid(pod.getMetadata().getUid(), cp.getContainerPort(), cp.getProtocol());
+                        return PodPortPO.builder()
+                                .uid(podPortUid)
+                                .gmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime())
+                                .status(status)
+                                .name(cp.getName())
+                                .port(cp.getContainerPort())
+                                .protocol(cp.getProtocol())
+                                .pod(PodPO.builder().uid(pod.getMetadata().getUid()).build())
+                                .build();
+                    })
+                    .distinct()
+                    .collect(Collectors.toList());
+            podPortService.saveAll(podPorts);
         }
     }
 

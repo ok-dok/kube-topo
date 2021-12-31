@@ -44,35 +44,41 @@ public class PodServiceImpl implements PodService {
     @Transactional
     @Override
     public void saveOrUpdate(V1Pod pod, String status) throws K8sServiceException {
-        PodPO podPO = podRepository.findById(pod.getMetadata().getUid()).orElse(PodPO.builder().uid(pod.getMetadata().getUid()).build());
         String state = null;
-        if ("Running".equalsIgnoreCase(status)) {
-            List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
-            if (CollectionUtils.isNotEmpty(containerStatuses)) {
-                long readyCount = containerStatuses.stream().filter(cs -> cs.getReady()).count();
-                if (readyCount == containerStatuses.size()) {
-                    state = "Ready";
-                } else {
+        List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
+        StringBuilder containerIds = new StringBuilder();
+        if (CollectionUtils.isNotEmpty(containerStatuses)) {
+            state = "Ready";
+            for (V1ContainerStatus containerStatus : containerStatuses) {
+                if (!containerStatus.getReady()) {
                     state = "NotReady";
                 }
-            } else {
-                state = "NotReady";
+                if (containerStatus.getState().getRunning() != null) {
+                    containerIds.append(containerStatus.getContainerID()).append(",");
+                }
             }
-        } else {
-            state = "NotReady";
         }
-        podPO.setName(pod.getMetadata().getName())
-                .setNamespace(pod.getMetadata().getNamespace())
-                .setIp(pod.getStatus().getPodIP())
-                .setState(state)
-                .setContainerIds(Optional.ofNullable(pod.getStatus().getContainerStatuses()).map(l -> l.get(0)).map(s -> s.getContainerID()).orElse(null))
-                .setStatus(status)
-                .setGmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime());
+        int lastCommaIndex = containerIds.lastIndexOf(",");
+        if (lastCommaIndex > 0) {
+            containerIds.deleteCharAt(lastCommaIndex);
+        }
+        PodPO podPO = PodPO.builder()
+                .uid(pod.getMetadata().getUid())
+                .gmtCreate(pod.getMetadata().getCreationTimestamp().toLocalDateTime())
+                .name(pod.getMetadata().getName())
+                .namespace(pod.getMetadata().getNamespace())
+                .status(status)
+                .state(state)
+                .ip(pod.getStatus().getHostIP())
+                .hostname(pod.getSpec().getHostname())
+                .subdomain(pod.getSpec().getSubdomain())
+                .containerIds(containerIds.toString())
+                .build();
         if (podPO.getNode() == null) {
             Optional<NodePO> nodeOpt = nodeService.findByHostIP(pod.getStatus().getHostIP());
             podPO.setNode(nodeOpt.orElse(null));
         }
-        save(podPO);
+        saveOrUpdate(podPO);
     }
 
     @Override
