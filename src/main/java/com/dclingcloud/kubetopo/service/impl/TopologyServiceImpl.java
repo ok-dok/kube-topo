@@ -407,8 +407,6 @@ public class TopologyServiceImpl implements TopologyService {
                     String finalServiceUid = serviceUid;
                     podStates.forEach((podUid, ep) -> {
                         Optional<PodPortPO> podPortOpt = podPortService.find(podUid, targetPort, port.getProtocol());
-                        final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
-                                BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                         // 能找到后端podPort，非意外情况，必存在，因为已经有对应的pod提供服务，如果出现找不到的情况，必须要排查找不到PodPort的原因，是否保存异常？
                         if (podPortOpt.isPresent()) {
                             // 通过Integer类型的targetPort找不到servicePort时，通过名称查找一下
@@ -421,6 +419,8 @@ public class TopologyServiceImpl implements TopologyService {
                                 }
                             });
                             Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                            final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
+                                    BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
                             if (backendEndpointRelation.isPresent()) {
                                 // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
                                 // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
@@ -454,18 +454,35 @@ public class TopologyServiceImpl implements TopologyService {
                     endpointSlice.getEndpoints().stream()
                             .filter(ep -> ep.getTargetRef() == null)
                             .forEach(ep -> {
+                                Optional<BackendEndpointRelationPO> backendEndpointRelation = endpointsService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
                                 final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
                                         BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
-                                BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
-                                        .state(state)
-                                        .servicePort(servicePortOptRef.get().orElse(null))
-                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
-                                        .port(port.getPort())
-                                        .gmtCreate(gmtCreate)
-                                        .gmtModified(gmtModified)
-                                        .status(EventType.ADDED)
-                                        .build();
-                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                if (backendEndpointRelation.isPresent()) {
+                                    // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
+                                    // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
+                                    if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
+                                        BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
+                                            r.setGmtModified(gmtModified);
+                                            r.setState(state);
+                                            r.setStatus(EventType.ADDED);
+                                            r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
+                                            r.setPort(port.getPort());
+                                            return r;
+                                        }).get();
+                                        backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                    }
+                                } else {
+                                    BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
+                                            .state(state)
+                                            .servicePort(servicePortOptRef.get().orElse(null))
+                                            .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                            .port(port.getPort())
+                                            .gmtCreate(gmtCreate)
+                                            .gmtModified(gmtModified)
+                                            .status(EventType.ADDED)
+                                            .build();
+                                    backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                }
                             });
                 }
             }

@@ -83,10 +83,9 @@ public class EndpointsServiceImpl implements EndpointsService {
     @Override
     public Optional<BackendEndpointRelationPO> findByServicePortUidAndPodPortUid(ServicePortPO servicePort, PodPortPO podPort) {
         try {
-            return backendEndpointRelationRepository.findByServicePortAndPodPort(ServicePortPO.builder().uid(servicePort.getUid()).build(),
-                    PodPortPO.builder().uid(podPort.getUid()).build());
+            return backendEndpointRelationRepository.findByServicePortAndPodPort(servicePort, podPort);
         } catch (Exception e) {
-            log.error("Error: failed to find {} by servicePortUid and podPortUid.", BackendEndpointRelationPO.class.getName(), servicePort, podPort, e);
+            log.error("Error: failed to find {} by servicePort and podPort.", BackendEndpointRelationPO.class.getName(), servicePort, podPort, e);
             throw new K8sServiceException("Unable to find " + BackendEndpointRelationPO.class.getSimpleName(), e);
         }
     }

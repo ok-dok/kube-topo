@@ -15,9 +15,9 @@ import java.util.Objects;
 @Accessors(chain = true)
 @SuperBuilder
 @Entity
-@Table(name = "backend_endpoint_relation", schema = "k8s"/*, uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"service_port_uid", "pod_port_uid"}),
-}*/)
+@Table(name = "backend_endpoint_relation", schema = "k8s", uniqueConstraints = {
+        @UniqueConstraint(name = "uc_unique_key_index", columnNames = {"service_port_uid", "pod_port_uid"})
+})
 public class BackendEndpointRelationPO extends BasePO {
 
     @Id
