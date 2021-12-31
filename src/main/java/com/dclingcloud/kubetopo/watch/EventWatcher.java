@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.lang.reflect.ParameterizedType;
 import java.net.NoRouteToHostException;
 import java.net.SocketException;
@@ -119,6 +120,9 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
             } else if (e.getCause() instanceof SocketException) {
                 // Socket Closed
                 cleanWatch();
+            } else if(e.getCause() instanceof InterruptedIOException) {
+                // 优雅终止
+                cleanWatch();
             } else {
                 throw e;
             }
@@ -131,6 +135,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        log.info("Started to watch {} events",  tClazz.getSimpleName());
     }
 
     @PreDestroy
