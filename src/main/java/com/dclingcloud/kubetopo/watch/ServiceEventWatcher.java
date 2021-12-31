@@ -51,13 +51,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
                 processAddedEvent(service, eventLog);
                 break;
             case DELETED:
-                try {
-                    serviceService.delete(service);
-                    servicePortService.deleteAllByServiceUid(service.getMetadata().getUid());
-                } catch (K8sServiceException e) {
-                    // TODO 保存异常处理，重试？
-                    throw e;
-                }
+                processDeleteEvent(service, eventLog);
                 break;
         }
     }
@@ -71,7 +65,13 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
     }
 
     private void processDeleteEvent(V1Service service, StringBuilder eventLog) {
-
+        try {
+            serviceService.delete(service);
+            servicePortService.deleteAllByServiceUid(service.getMetadata().getUid());
+        } catch (K8sServiceException e) {
+            // TODO 保存异常处理，重试？
+            throw e;
+        }
     }
 
     private void processSaveEvent(V1Service service, StringBuilder eventLog, String status) {
@@ -93,7 +93,7 @@ public class ServiceEventWatcher extends EventWatcher<V1Service> {
                         .port(sp.getPort())
                         .targetPort(sp.getTargetPort())
                         .nodePort(sp.getNodePort())
-                        .status(ADDED)
+                        .status(status)
                         .gmtCreate(service.getMetadata().getCreationTimestamp().toLocalDateTime())
                         .build();
                 servicePortService.saveOrUpdate(servicePortPO);
