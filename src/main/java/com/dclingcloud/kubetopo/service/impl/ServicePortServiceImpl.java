@@ -11,12 +11,14 @@ import io.kubernetes.client.openapi.models.V1ServiceBackendPort;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.persistence.PersistenceException;
 import javax.transaction.Transactional;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -87,5 +89,16 @@ public class ServicePortServiceImpl implements ServicePortService {
             log.error("Error: can not find {} by serviceUid and targetPort and protocol. serviceUid={}, targetPort={}, protocol={}", PodPortPO.class.getName(), serviceUid, targetPort, protocol, e);
             throw new K8sServiceException("Unable to find " + ServicePortPO.class.getSimpleName() + "'s targetPort by serviceUid and targetPort and protocol", e);
         }
+    }
+
+    @Override
+    public List<String> findAllUidByServiceUid(@NonNull String serviceUid) {
+        try {
+            return servicePortRepository.findAllUidByServiceUid(serviceUid);
+        } catch (Exception e) {
+            log.error("Error: can not find all uids of {} by serviceUid. serviceUid={}", ServicePortPO.class.getName(), serviceUid, e);
+            throw new K8sServiceException("Uable to find all uids of " + ServicePortPO.class.getSimpleName(), e);
+        }
+
     }
 }

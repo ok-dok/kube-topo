@@ -36,4 +36,7 @@ public interface ServicePortRepository extends JpaRepository<ServicePortPO, Stri
 
     @Query("select distinct targetPort from ServicePortPO where uid = :uid and status <> 'DELETED'")
     Optional<IntOrString> getTargetPortByUid(String uid);
+
+    @Query("select uid from ServicePortPO where service = :serviceUid")
+    List<String> findAllUidByServiceUid(String serviceUid);
 }
