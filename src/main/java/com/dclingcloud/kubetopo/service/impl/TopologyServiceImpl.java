@@ -71,7 +71,7 @@ public class TopologyServiceImpl implements TopologyService {
         List<ServiceVO> svcs = svcList.stream().map(svc -> {
             List<BackendVO> backends = Optional.ofNullable(servicePortRepository.findAllByService(svc)).map(l -> l.stream().map(p -> {
                 List<String> endpointsUids = Optional.ofNullable(p.getBackendEndpointRelations()).map(Collection::stream)
-                        .map(stream -> stream.map(b -> b.getPodPort().getUid())
+                        .map(stream -> stream.map(b -> b.getPodPort()).filter(Objects::nonNull).map(PodPortPO::getUid)
                                 .collect(Collectors.toList()))
                         .orElse(Collections.emptyList());
                 List<String> servicePortUids = pathRuleRepository.findAllUidsByServicePort(p);
