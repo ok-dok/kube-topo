@@ -44,7 +44,7 @@ public class PodServiceImpl implements PodService {
     @Transactional
     @Override
     public void saveOrUpdate(V1Pod pod, String status) throws K8sServiceException {
-        String state = null;
+        String state = "NotReady";
         List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
         StringBuilder containerIds = new StringBuilder();
         if (CollectionUtils.isNotEmpty(containerStatuses)) {
