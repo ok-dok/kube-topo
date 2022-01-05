@@ -32,7 +32,7 @@ public class ServicePO extends BasePO {
     private String type;
     @Column
     private String clusterIP;
-    @Column
+    @Column(name = "external_ips")
     private String externalIPs;
     @Column(name = "load_balancer_ip")
     private String loadBalancerIP;

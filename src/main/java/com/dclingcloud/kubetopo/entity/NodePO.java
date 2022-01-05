@@ -27,9 +27,9 @@ public class NodePO extends BasePO {
     private String name;
     @Column
     private String hostname;
-    @Column
+    @Column(name = "internal_ip")
     private String internalIP;
-    @Column
+    @Column(name = "pod_cidr")
     private String podCIDR;
 
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "node")
