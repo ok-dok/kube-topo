@@ -1,5 +1,6 @@
 package com.dclingcloud.kubetopo.service.impl;
 
+import com.dclingcloud.kubetopo.beanmapper.BackendEndpointRelationPOMapper;
 import com.dclingcloud.kubetopo.constants.K8sResources;
 import com.dclingcloud.kubetopo.entity.*;
 import com.dclingcloud.kubetopo.repository.*;
@@ -58,6 +59,8 @@ public class TopologyServiceImpl implements TopologyService {
     private ServicePortService servicePortService;
     @Resource
     private PodPortService podPortService;
+    @Resource
+    private BackendEndpointRelationPOMapper backendEndpointRelationPOMapper;
 
     @Override
     public TopologyVO getTopology() {
@@ -351,35 +354,28 @@ public class TopologyServiceImpl implements TopologyService {
                                     return prev;
                                 }
                             });
-                            Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                            Optional<BackendEndpointRelationPO> backendEndpointRelationOpt = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
                             final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
-                                    BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
-                            if (backendEndpointRelation.isPresent()) {
+                                    BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : "NotReady";
+                            BackendEndpointRelationPO.BackendEndpointRelationPOBuilder<?, ?> builder = BackendEndpointRelationPO.builder()
+                                    .state(state)
+                                    .servicePort(servicePortOptRef.get().orElse(null))
+                                    .podPort(podPortOpt.get())
+                                    .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                    .port(port.getPort())
+                                    .gmtCreate(gmtCreate)
+                                    .gmtModified(gmtModified);
+                            if (backendEndpointRelationOpt.isPresent()) {
                                 // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
                                 // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
-                                if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
-                                    BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
-                                        r.setGmtModified(gmtModified);
-                                        r.setState(state);
-                                        r.setStatus(EventType.ADDED);
-                                        r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
-                                        r.setPort(port.getPort());
-                                        return r;
-                                    }).get();
-                                    backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                BackendEndpointRelationPO persistPO = backendEndpointRelationOpt.get();
+                                if (gmtModified != null && persistPO.getGmtModified().isBefore(gmtModified)) {
+                                    backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
+                                            builder.status(EventType.MODIFIED).build());
+                                    backendEndpointRelationSet.add(persistPO);
                                 }
                             } else {
-                                BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
-                                        .state(state)
-                                        .servicePort(servicePortOptRef.get().orElse(null))
-                                        .podPort(podPortOpt.get())
-                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
-                                        .port(port.getPort())
-                                        .gmtCreate(gmtCreate)
-                                        .gmtModified(gmtModified)
-                                        .status(EventType.ADDED)
-                                        .build();
-                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                backendEndpointRelationSet.add(builder.status(EventType.ADDED).build());
                             }
                         }
                     });
@@ -387,34 +383,27 @@ public class TopologyServiceImpl implements TopologyService {
                     endpointSlice.getEndpoints().stream()
                             .filter(ep -> ep.getTargetRef() == null)
                             .forEach(ep -> {
-                                Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
+                                Optional<BackendEndpointRelationPO> backendEndpointRelationOpt = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
                                 final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
-                                        BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
-                                if (backendEndpointRelation.isPresent()) {
+                                        BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : "NotReady";
+                                BackendEndpointRelationPO.BackendEndpointRelationPOBuilder<?, ?> builder = BackendEndpointRelationPO.builder()
+                                        .state(state)
+                                        .servicePort(servicePortOptRef.get().orElse(null))
+                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                        .port(port.getPort())
+                                        .gmtCreate(gmtCreate)
+                                        .gmtModified(gmtModified);
+                                if (backendEndpointRelationOpt.isPresent()) {
                                     // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
                                     // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
-                                    if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
-                                        BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
-                                            r.setGmtModified(gmtModified);
-                                            r.setState(state);
-                                            r.setStatus(EventType.ADDED);
-                                            r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
-                                            r.setPort(port.getPort());
-                                            return r;
-                                        }).get();
-                                        backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                    BackendEndpointRelationPO persistPO = backendEndpointRelationOpt.get();
+                                    if (gmtModified != null && persistPO.getGmtModified().isBefore(gmtModified)) {
+                                        backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
+                                                builder.status(EventType.MODIFIED).build());
+                                        backendEndpointRelationSet.add(persistPO);
                                     }
                                 } else {
-                                    BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
-                                            .state(state)
-                                            .servicePort(servicePortOptRef.get().orElse(null))
-                                            .addresses(StringUtils.join(ep.getAddresses(), ","))
-                                            .port(port.getPort())
-                                            .gmtCreate(gmtCreate)
-                                            .gmtModified(gmtModified)
-                                            .status(EventType.ADDED)
-                                            .build();
-                                    backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                    backendEndpointRelationSet.add(builder.status(EventType.ADDED).build());
                                 }
                             });
                 }
@@ -433,9 +422,8 @@ public class TopologyServiceImpl implements TopologyService {
         List<PodPO> podList = new ArrayList<>();
         ArrayList<PodPortPO> podPortPOList = new ArrayList<>();
         for (V1Pod pod : items) {
-            String status = pod.getStatus().getPhase();
             StringBuilder containerIds = new StringBuilder();
-            String state = null;
+            String state = "NotReady";
             List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
             if (CollectionUtils.isNotEmpty(containerStatuses)) {
                 state = "Ready";

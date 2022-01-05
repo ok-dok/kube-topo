@@ -1,5 +1,6 @@
 package com.dclingcloud.kubetopo.watch;
 
+import com.dclingcloud.kubetopo.beanmapper.BackendEndpointRelationPOMapper;
 import com.dclingcloud.kubetopo.constants.K8sResources;
 import com.dclingcloud.kubetopo.entity.BackendEndpointRelationPO;
 import com.dclingcloud.kubetopo.entity.PodPortPO;
@@ -39,6 +40,8 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
     private BackendEndpointRelationService backendEndpointRelationService;
     @Resource
     private PodPortService podPortService;
+    @Resource
+    private BackendEndpointRelationPOMapper backendEndpointRelationPOMapper;
 
     @Override
     protected void processEventObject(String type, V1EndpointSlice object, StringBuilder eventLog) throws ApiException {
@@ -122,7 +125,7 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                     .map(ep -> {
                         return new AbstractMap.SimpleEntry<String, V1Endpoint>(ep.getTargetRef().getUid(), ep);
                     }).collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
-            Set<BackendEndpointRelationPO> backendEndpointRelationSet = new HashSet<>();
+            HashSet<BackendEndpointRelationPO> backendEndpointRelationSet = new HashSet<>();
             for (DiscoveryV1EndpointPort port : endpointSlice.getPorts()) {
                 IntOrString targetPort = new IntOrString(port.getPort());
                 // 使用AtomicReference进行包装的目的是使流处理能够进行引用，而且需要更改其值
@@ -143,35 +146,28 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                                 return prev;
                             }
                         });
-                        Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
+                        Optional<BackendEndpointRelationPO> backendEndpointRelationOpt = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), podPortOpt.get());
                         final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
-                                BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
-                        if (backendEndpointRelation.isPresent()) {
+                                BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : "NotReady";
+                        BackendEndpointRelationPO.BackendEndpointRelationPOBuilder<?, ?> builder = BackendEndpointRelationPO.builder()
+                                .state(state)
+                                .servicePort(servicePortOptRef.get().orElse(null))
+                                .podPort(podPortOpt.get())
+                                .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                .port(port.getPort())
+                                .gmtCreate(gmtCreate)
+                                .gmtModified(gmtModified);
+                        if (backendEndpointRelationOpt.isPresent()) {
                             // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
                             // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
-                            if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
-                                BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
-                                    r.setGmtModified(gmtModified);
-                                    r.setState(state);
-                                    r.setStatus(status);
-                                    r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
-                                    r.setPort(port.getPort());
-                                    return r;
-                                }).get();
-                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                            BackendEndpointRelationPO persistPO = backendEndpointRelationOpt.get();
+                            if (gmtModified != null && persistPO.getGmtModified().isBefore(gmtModified)) {
+                                backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
+                                        builder.status(EventType.MODIFIED).build());
+                                backendEndpointRelationSet.add(persistPO);
                             }
                         } else {
-                            BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
-                                    .state(state)
-                                    .servicePort(servicePortOptRef.get().orElse(null))
-                                    .podPort(podPortOpt.get())
-                                    .addresses(StringUtils.join(ep.getAddresses(), ","))
-                                    .port(port.getPort())
-                                    .gmtCreate(gmtCreate)
-                                    .gmtModified(gmtModified)
-                                    .status(status)
-                                    .build();
-                            backendEndpointRelationSet.add(backendEndpointRelationPO);
+                            backendEndpointRelationSet.add(builder.status(EventType.ADDED).build());
                         }
                     }
                 });
@@ -179,34 +175,27 @@ public class EndpointSliceEventWatcher extends EventWatcher<V1EndpointSlice> {
                 endpointSlice.getEndpoints().stream()
                         .filter(ep -> ep.getTargetRef() == null)
                         .forEach(ep -> {
-                            Optional<BackendEndpointRelationPO> backendEndpointRelation = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
+                            Optional<BackendEndpointRelationPO> backendEndpointRelationOpt = backendEndpointRelationService.findByServicePortUidAndPodPortUid(servicePortOptRef.get().orElse(null), null);
                             final String state = BooleanUtils.isNotFalse(ep.getConditions().getReady()) ? "Ready" :
-                                    BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : null;
-                            if (backendEndpointRelation.isPresent()) {
+                                    BooleanUtils.isTrue(ep.getConditions().getTerminating()) ? "Terminating" : "NotReady";
+                            BackendEndpointRelationPO.BackendEndpointRelationPOBuilder<?, ?> builder = BackendEndpointRelationPO.builder()
+                                    .state(state)
+                                    .servicePort(servicePortOptRef.get().orElse(null))
+                                    .addresses(StringUtils.join(ep.getAddresses(), ","))
+                                    .port(port.getPort())
+                                    .gmtCreate(gmtCreate)
+                                    .gmtModified(gmtModified);
+                            if (backendEndpointRelationOpt.isPresent()) {
                                 // 记录已存在的情况下，需要比对修改时间，只有时间在后的修改才可以提交数据库
                                 // 这个操作必须存在，原因请参考：https://kubernetes.io/zh/docs/concepts/services-networking/endpoint-slices/#distribution-of-endpointslices
-                                if (gmtModified != null && backendEndpointRelation.get().getGmtModified().isBefore(gmtModified)) {
-                                    BackendEndpointRelationPO backendEndpointRelationPO = backendEndpointRelation.map(r -> {
-                                        r.setGmtModified(gmtModified);
-                                        r.setState(state);
-                                        r.setStatus(EventType.ADDED);
-                                        r.setAddresses(StringUtils.join(ep.getAddresses(), ","));
-                                        r.setPort(port.getPort());
-                                        return r;
-                                    }).get();
-                                    backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                BackendEndpointRelationPO persistPO = backendEndpointRelationOpt.get();
+                                if (gmtModified != null && persistPO.getGmtModified().isBefore(gmtModified)) {
+                                    backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
+                                            builder.status(EventType.MODIFIED).build());
+                                    backendEndpointRelationSet.add(persistPO);
                                 }
                             } else {
-                                BackendEndpointRelationPO backendEndpointRelationPO = BackendEndpointRelationPO.builder()
-                                        .state(state)
-                                        .servicePort(servicePortOptRef.get().orElse(null))
-                                        .addresses(StringUtils.join(ep.getAddresses(), ","))
-                                        .port(port.getPort())
-                                        .gmtCreate(gmtCreate)
-                                        .gmtModified(gmtModified)
-                                        .status(EventType.ADDED)
-                                        .build();
-                                backendEndpointRelationSet.add(backendEndpointRelationPO);
+                                backendEndpointRelationSet.add(builder.status(EventType.ADDED).build());
                             }
                         });
             }
