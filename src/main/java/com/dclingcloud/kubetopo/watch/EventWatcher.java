@@ -7,6 +7,7 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.util.Watch;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,6 +20,7 @@ import java.lang.reflect.ParameterizedType;
 import java.net.NoRouteToHostException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,10 +66,10 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
             // 下面代码会阻塞持续运行，直到发生异常
             for (Watch.Response<T> item : watch) {
                 StringBuilder eventLog = new StringBuilder();
-                eventLog.append("WatchType: ")
+                eventLog.append(item.type)
+                        .append(" Event: Subject: ")
                         .append(tClazz.getSimpleName())
-                        .append(", EventType: ")
-                        .append(item.type);
+                ;
                 switch (item.type.toUpperCase()) {
                     case ERROR:
                         // record the new resourceVersion
@@ -120,7 +122,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
             } else if (e.getCause() instanceof SocketException) {
                 // Socket Closed
                 cleanWatch();
-            } else if(e.getCause() instanceof InterruptedIOException) {
+            } else if (e.getCause() instanceof InterruptedIOException) {
                 // 优雅终止
                 cleanWatch();
             } else {
@@ -135,7 +137,7 @@ public abstract class EventWatcher<T extends KubernetesObject> implements EventT
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        log.info("Started to watch {} events",  tClazz.getSimpleName());
+        log.info("Started to watch {} events", tClazz.getSimpleName());
     }
 
     @PreDestroy
