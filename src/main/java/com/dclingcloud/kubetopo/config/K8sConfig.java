@@ -8,6 +8,7 @@ import io.kubernetes.client.openapi.apis.DiscoveryV1Api;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +20,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @Data
 @EnableJpaAuditing
 @ComponentScan(basePackages = "com.dclingcloud.kubetopo.**")
+@Slf4j
 public class K8sConfig {
     private String url;
     private String token;
@@ -33,6 +35,7 @@ public class K8sConfig {
         ApiClient apiClient = Config.fromToken(url, token, false);
         apiClient.setReadTimeout(30000);
         Configuration.setDefaultApiClient(apiClient);
+        log.info("K8s apiserver endpoint {}, timeout={}", url, 30000);
         return apiClient;
     }
 

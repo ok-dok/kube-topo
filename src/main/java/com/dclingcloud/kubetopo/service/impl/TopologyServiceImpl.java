@@ -56,6 +56,8 @@ public class TopologyServiceImpl implements TopologyService {
     @Resource
     private BackendEndpointRelationService backendEndpointRelationService;
     @Resource
+    private BackendEndpointRelationRepository backendEndpointRelationRepository;
+    @Resource
     private ServicePortService servicePortService;
     @Resource
     private PodPortService podPortService;
@@ -174,6 +176,7 @@ public class TopologyServiceImpl implements TopologyService {
             pathRuleRepository.updateAllWithDeletedStatus();
             podRepository.updateAllWithDeletedStatus();
             podPortRepository.updateAllWithDeletedStatus();
+            backendEndpointRelationRepository.updateAllWithDeletedStatus();
         } catch (PersistenceException e) {
             log.error("Error: update all resources' status to 'DELETED' failed", e);
             throw new K8sServiceException("failed to tag old resources to deleted status", e);
@@ -308,7 +311,7 @@ public class TopologyServiceImpl implements TopologyService {
             LocalDateTime gmtModified = Optional.ofNullable(metadata.getAnnotations())
                     .map(map -> map.get("endpoints.kubernetes.io/last-change-trigger-time"))
                     .map(timestamp -> LocalDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                    .orElse(null);
+                    .orElse(gmtCreate);
             String namespace = metadata.getNamespace();
             Optional<List<V1OwnerReference>> ownerReferencesOpt = Optional.ofNullable(metadata.getOwnerReferences());
             // 通常来说，ownerReferences只有一个，但是其类型是列表类型，因此极端情况下或许会出现多个的情况？
@@ -373,6 +376,9 @@ public class TopologyServiceImpl implements TopologyService {
                                     backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
                                             builder.status(EventType.MODIFIED).build());
                                     backendEndpointRelationSet.add(persistPO);
+                                } else if (EventType.DELETED.equalsIgnoreCase(persistPO.getStatus())) {
+                                    persistPO.setStatus(EventType.ADDED);
+                                    backendEndpointRelationSet.add(persistPO);
                                 }
                             } else {
                                 backendEndpointRelationSet.add(builder.status(EventType.ADDED).build());
@@ -400,6 +406,9 @@ public class TopologyServiceImpl implements TopologyService {
                                     if (gmtModified != null && persistPO.getGmtModified().isBefore(gmtModified)) {
                                         backendEndpointRelationPOMapper.updatePropertiesIgnoresNull(persistPO,
                                                 builder.status(EventType.MODIFIED).build());
+                                        backendEndpointRelationSet.add(persistPO);
+                                    } else if (EventType.DELETED.equalsIgnoreCase(persistPO.getStatus())) {
+                                        persistPO.setStatus(EventType.ADDED);
                                         backendEndpointRelationSet.add(persistPO);
                                     }
                                 } else {

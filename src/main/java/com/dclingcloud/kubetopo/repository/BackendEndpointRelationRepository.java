@@ -19,4 +19,7 @@ public interface BackendEndpointRelationRepository extends JpaRepository<Backend
     @Modifying
     @Query("update BackendEndpointRelationPO set status = 'DELETED' where servicePort in (:servicePortUids) and gmtModified < :gmtModified and status <> 'DELETED'")
     void deleteAllByServicePortUidsAndGmtMidfiedBefore(List<String> servicePortUids, LocalDateTime gmtModified);
+    @Modifying
+    @Query("update BackendEndpointRelationPO set status = 'DELETED' where status <> 'DELETED'")
+    void updateAllWithDeletedStatus();
 }
