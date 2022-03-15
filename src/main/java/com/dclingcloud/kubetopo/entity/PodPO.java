@@ -36,12 +36,15 @@ public class PodPO extends BasePO {
     @Column
     private String state;
     @Column
+    @Lob
     private String hostname;
     @Column
+    @Lob
     private String subdomain;
     @Column
     private String ip;
     @Column
+    @Lob
     private String containerIds;
     @ToString.Exclude
     @OneToMany(cascade = CascadeType.DETACH, mappedBy = "pod")
